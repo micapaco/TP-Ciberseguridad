@@ -1,0 +1,27 @@
+apiVersion: 1
+
+datasources:
+  - name: Postgres SIEM
+    type: postgres
+    access: proxy
+    url: postgres:5432
+    database: siem
+    user: siem
+    jsonData:
+      sslmode: disable
+      postgresVersion: 1600
+    secureJsonData:
+      password: siem123
+    isDefault: true
+    editable: true
+
+  - name: Elasticsearch SIEM
+    type: elasticsearch
+    access: proxy
+    url: http://elasticsearch:9200
+    database: "[siem-events-]YYYY.MM.DD"
+    jsonData:
+      timeField: "@timestamp"
+      esVersion: "8.15.0"
+      interval: Daily
+    editable: true

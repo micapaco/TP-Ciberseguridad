@@ -1,0 +1,177 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: siem_postgres
+    environment:
+      POSTGRES_USER: siem
+      POSTGRES_PASSWORD: siem123
+      POSTGRES_DB: siem
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./sql:/docker-entrypoint-initdb.d
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - siem-net
+    restart: unless-stopped
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.15.0
+    container_name: siem_elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms1g -Xmx1g
+    ports:
+      - "9200:9200"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    networks:
+      - siem-net
+    restart: unless-stopped
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.15.0
+    container_name: siem_kibana
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    ports:
+      - "5601:5601"
+    networks:
+      - siem-net
+    depends_on:
+      - elasticsearch
+    restart: unless-stopped
+
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.15.0
+    container_name: siem_logstash
+    volumes:
+      - ./logstash/logstash.conf:/usr/share/logstash/pipeline/logstash.conf
+    ports:
+      - "5044:5044"
+      - "5140:5140/udp"
+    networks:
+      - siem-net
+    depends_on:
+      - elasticsearch
+      - postgres
+    restart: unless-stopped
+
+  syslog-ng:
+    image: balabit/syslog-ng:latest
+    container_name: siem_syslog
+    volumes:
+      - ./syslog-ng/syslog-ng.conf:/etc/syslog-ng/syslog-ng.conf
+    ports:
+      - "514:514/udp"
+      - "6514:6514/tcp"
+    networks:
+      - siem-net
+    depends_on:
+      - logstash
+    restart: unless-stopped
+
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: siem_n8n
+    ports:
+      - "5678:5678"
+    environment:
+      - DB_TYPE=postgresdb
+      - DB_POSTGRESDB_HOST=postgres
+      - DB_POSTGRESDB_PORT=5432
+      - DB_POSTGRESDB_DATABASE=siem
+      - DB_POSTGRESDB_USER=siem
+      - DB_POSTGRESDB_PASSWORD=siem123
+      - N8N_BASIC_AUTH_ACTIVE=false
+      - N8N_BASIC_AUTH_USER=admin
+      - N8N_BASIC_AUTH_PASSWORD=admin123
+    volumes:
+      - n8n_data:/home/node/.n8n
+    networks:
+      - siem-net
+    depends_on:
+      - postgres
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: siem_grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin123
+    volumes:
+      - ./grafana:/etc/grafana/provisioning
+      - grafana_data:/var/lib/grafana
+    networks:
+      - siem-net
+    depends_on:
+      - postgres
+      - elasticsearch
+    restart: unless-stopped
+
+  wazuh-manager:
+    image: wazuh/wazuh-manager:4.7.0
+    container_name: siem_wazuh_manager
+    hostname: wazuh-manager
+    restart: unless-stopped
+    ports:
+      - "1514:1514"
+      - "1515:1515"
+      - "55000:55000"
+    environment:
+      - INDEXER_URL=https://elasticsearch:9200
+      - INDEXER_USERNAME=admin
+      - INDEXER_PASSWORD=admin
+      - FILEBEAT_SSL_VERIFICATION_MODE=none
+    volumes:
+      - wazuh_api_configuration:/var/ossec/api/configuration
+      - wazuh_etc:/var/ossec/etc
+      - wazuh_logs:/var/ossec/logs
+      - wazuh_queue:/var/ossec/queue
+      - wazuh_var_multigroups:/var/ossec/var/multigroups
+      - wazuh_integrations:/var/ossec/integrations
+      - wazuh_active_response:/var/ossec/active-response/bin
+      - wazuh_agentless:/var/ossec/agentless
+      - wazuh_wodles:/var/ossec/wodles
+    networks:
+      - siem-net
+
+  wazuh-dashboard:
+    image: wazuh/wazuh-dashboard:4.7.0
+    container_name: siem_wazuh_dashboard
+    hostname: wazuh-dashboard
+    restart: unless-stopped
+    ports:
+      - "8443:5601"
+    environment:
+      - OPENSEARCH_HOSTS=https://elasticsearch:9200
+      - WAZUH_API_URL=https://wazuh-manager
+      - API_USERNAME=wazuh-wui
+      - API_PASSWORD=MyS3cr37P450r.*-
+    depends_on:
+      - wazuh-manager
+    networks:
+      - siem-net
+
+networks:
+  siem-net:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  elasticsearch_data:
+  n8n_data:
+  grafana_data:
+  wazuh_api_configuration:
+  wazuh_etc:
+  wazuh_logs:
+  wazuh_queue:
+  wazuh_var_multigroups:
+  wazuh_integrations:
+  wazuh_active_response:
+  wazuh_agentless:
+  wazuh_wodles:

@@ -1,0 +1,29 @@
+﻿# Docker volumes y datos
+postgres_data/
+elasticsearch_data/
+n8n_data/
+grafana_data/
+wazuh_*/
+
+# Logs
+*.log
+logs/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+venv/
+env/
+
+# Sistema
+.DS_Store
+Thumbs.db
+*.swp
+*.bak
+
+# Temporales
+tmp/
+temp/
