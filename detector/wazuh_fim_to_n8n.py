@@ -5,7 +5,7 @@ import time
 from datetime import datetime
 
 N8N_WEBHOOK = "http://localhost:5678/webhook/alert/siem"
-API_KEY = "supersecreto123"
+API_KEY = "superpoderosas26"
 
 def monitor_wazuh_fim():
     """Monitorea alertas FIM de Wazuh y las envía a n8n"""

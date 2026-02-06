@@ -6,7 +6,7 @@ import json
 # Configuración
 ELASTICSEARCH_URL = "http://localhost:9200"
 N8N_WEBHOOK_URL = "http://localhost:5678/webhook/alert/siem"
-N8N_API_KEY = "supersecreto123"
+N8N_API_KEY = "superpoderosas26"
 CHECK_INTERVAL = 120  # 2 minutos en segundos
 THRESHOLD = 5  # Número mínimo de intentos fallidos
 
