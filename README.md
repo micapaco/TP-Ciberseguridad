@@ -122,7 +122,7 @@ Desarrollar y documentar un **prototipo funcional de SIEM automatizado con n8n**
 
 | Componente | Estado | Qué hace |
 |------------|--------|----------|
-| Docker Compose | ✅ Completo | Define los 9 servicios del sistema |
+| Docker Compose | ✅ Completo | Define los 8 servicios del sistema |
 | PostgreSQL | ✅ Funcionando | Base de datos con tablas alerts, playbook_runs, events_raw |
 | Elasticsearch | ✅ Funcionando | Almacena logs indexados para búsqueda rápida |
 | Kibana | ✅ Funcionando | Interfaz web para explorar logs |
@@ -130,7 +130,7 @@ Desarrollar y documentar un **prototipo funcional de SIEM automatizado con n8n**
 | syslog-ng | ✅ Funcionando | Recibe logs UDP y los reenvía a Logstash |
 | n8n | ✅ Funcionando | Workflow "SIEM - Alerta Entrante" activo |
 | Grafana | ✅ Funcionando | Dashboard con 7 paneles de métricas |
-| Wazuh | ✅ Instalado | Manager y Dashboard configurados |
+| Wazuh Manager | ✅ Instalado | Manager configurado para detección FIM |
 | Detector SSH | ✅ Funcionando | Script Python que detecta brute-force automáticamente |
 | Detector FIM | ⏳ Pendiente | Script listo, falta probar integración completa |
 
@@ -274,7 +274,7 @@ El sistema funciona como una **cadena de montaje** donde cada estación tiene un
 ```
 C:\TP-Final\
 │
-├── 📄 docker-compose.yml      # Define los 9 servicios Docker
+├── 📄 docker-compose.yml      # Define los 8 servicios Docker
 ├── 📄 README.md               # Este archivo que estás leyendo
 ├── 📄 PROYECTO 03.pdf         # Documento con los requisitos
 │
@@ -314,7 +314,7 @@ C:\TP-Final\
 
 ### docker-compose.yml
 
-**Qué hace**: Define 9 servicios Docker que componen el SIEM.
+**Qué hace**: Define 8 servicios Docker que componen el SIEM.
 
 **Para qué existe**: Permite levantar todo el sistema con un solo comando (`docker-compose up -d`).
 
@@ -331,7 +331,8 @@ C:\TP-Final\
 | n8n | 5678 | Orquestador SOAR |
 | grafana | 3000 | Dashboards |
 | wazuh-manager | 1514, 55000 | Detector FIM |
-| wazuh-dashboard | 8443 | Interfaz Wazuh |
+
+> **Nota sobre Wazuh Dashboard**: Se decidió no incluir el servicio `wazuh-dashboard` porque requiere **OpenSearch** como backend de datos, pero este stack utiliza **Elasticsearch**. Ambos motores son incompatibles entre sí. La detección FIM de Wazuh **sí funciona** a través del Manager, y las alertas se visualizan en **Grafana** mediante el script `wazuh_fim_to_n8n.py` que las envía a n8n → PostgreSQL → Grafana.
 
 ---
 
@@ -537,7 +538,7 @@ si la alerta es de tipo "syscheck" (cambio de archivo):
 
 | Servicio externo | Cómo se integra | Estado |
 |------------------|-----------------|--------|
-| Telegram | n8n envía notificaciones | ⏳ Pendiente configurar |
+| Telegram | n8n envía notificaciones | ✅ Configurado |
 | AbuseIPDB | n8n consulta reputación IP | ❌ No implementado |
 | VirusTotal | n8n consulta hashes | ❌ No implementado |
 
@@ -577,7 +578,7 @@ requests     → Para hacer llamadas HTTP a Elasticsearch y n8n
 | 5432 | TCP | PostgreSQL |
 | 5601 | TCP | Kibana |
 | 5678 | TCP | n8n |
-| 8443 | TCP | Wazuh Dashboard |
+
 | 9200 | TCP | Elasticsearch |
 
 ### Verificar si Docker está instalado
@@ -607,13 +608,13 @@ docker-compose up -d
 2. Descarga las imágenes Docker si no existen localmente
 3. Crea una red virtual llamada `siem-net`
 4. Crea volúmenes para persistir datos
-5. Inicia los 9 contenedores en orden de dependencias
+5. Inicia los 8 contenedores en orden de dependencias
 
 **Por qué es necesario ejecutarlo**: Es el comando que "enciende" todo el sistema. Sin esto, no hay servicios corriendo.
 
 **Salida esperada**:
 ```
-[+] Running 9/9
+[+] Running 8/8
  ✔ Container siem_postgres        Started
  ✔ Container siem_elasticsearch   Started
  ✔ Container siem_kibana          Started
@@ -622,7 +623,6 @@ docker-compose up -d
  ✔ Container siem_n8n             Started
  ✔ Container siem_grafana         Started
  ✔ Container siem_wazuh_manager   Started
- ✔ Container siem_wazuh_dashboard Started
 ```
 
 ---
@@ -648,7 +648,6 @@ siem_syslog             Up
 siem_n8n                Up
 siem_grafana            Up
 siem_wazuh_manager      Up
-siem_wazuh_dashboard    Up
 ```
 
 **Si alguno dice "Exited"**: Hay un problema. Ver logs con `docker logs <nombre_contenedor>`.
@@ -720,8 +719,7 @@ docker-compose down
 
 **Salida esperada**:
 ```
-[+] Running 9/9
- ✔ Container siem_wazuh_dashboard  Removed
+[+] Running 8/8
  ✔ Container siem_wazuh_manager    Removed
  ✔ Container siem_grafana          Removed
  ✔ Container siem_n8n              Removed
@@ -823,7 +821,7 @@ curl http://localhost:9200/_cluster/health
 | Grafana | http://localhost:3000 | admin / admin123 |
 | Kibana | http://localhost:5601 | (sin credenciales) |
 | n8n | http://localhost:5678 | (crear cuenta al primer acceso) |
-| Wazuh | https://localhost:8443 | admin / admin |
+
 
 **Cómo saber si funcionó**: Se abre la interfaz en el navegador.
 

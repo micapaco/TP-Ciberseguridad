@@ -1,0 +1,677 @@
+﻿Implementación de un SIEM Básico Orquestado con n8n para Recolección Centralizada de  Logs, Detección de Anomalías y Respuesta Automatizada 
+Autor: Alberto Cortez 
+Afiliación: Universidad Tecnológica Nacional (UTN) – SIED / Facultad Regional [indicar] Línea de Investigación: Automatización en Ciberseguridad · SecOps · Analítica de Logs · SOAR  Open Source 
+Fecha: Octubre 2025 
+Resumen 
+Este trabajo presenta el diseño, implementación y validación de un Sistema de Información y  Gestión de Eventos de Seguridad (SIEM) automatizado, orquestado mediante n8n y construido  íntegramente con tecnologías open source. El objetivo central es centralizar logs, detectar  anomalías y ejecutar respuestas automáticas ante incidentes en un entorno académico  controlado, reduciendo los tiempos medios de detección y respuesta (MTTA/MTTR) y, al  mismo tiempo, generando un escenario de práctica realista para la formación de analistas de  operaciones de seguridad (SecOps) en modalidad a distancia. 
+La solución integra syslog-ng, Logstash, Elasticsearch, PostgreSQL, Grafana y n8n,  conformando un pipeline SIEM–SOAR-lite reproducible, de bajo costo y alineado con los  requerimientos de laboratorios universitarios. Los resultados esperados incluyen: (i) reducción  del tiempo de triage, (ii) mayor visibilidad sobre los eventos de seguridad, (iii) auditoría  completa de los playbooks de respuesta y (iv) disponibilización de material didáctico  reutilizable. 
+Palabras clave: SIEM, n8n, SOAR, ciberseguridad, automatización, Grafana, PostgreSQL, open  source, SecOps. 
+1. Introducción 
+En los últimos años, los Sistemas de Información y Gestión de Eventos de Seguridad (SIEM) se  consolidaron como el centro de la observabilidad y la respuesta frente a incidentes en  organizaciones públicas, privadas y académicas. No obstante, su adopción se ve limitada en  entornos educativos, laboratorios universitarios o pymes tecnológicas por tres factores  principales: 
+1. Costo de licenciamiento de las plataformas comerciales. 
+2. Complejidad de despliegue y de operación diaria. 
+3. Ausencia de automatización que permita reducir la carga operativa del analista SOC. 
+Este proyecto se propone cerrar esa brecha diseñando un SIEM académico reproducible que,  apoyado en herramientas libres y en automatización con n8n, pueda simular las funciones  básicas de un SOAR (Security Orchestration, Automation and Response) sin requerir  infraestructura costosa. 
+La propuesta se enmarca en la tendencia de convergencia SIEM–SOAR–IA y en la necesidad de  que las carreras de informática e ingeniería formen competencias prácticas en SecOps, 
+especialmente en contextos de educación a distancia (UTN – SIED). Además, el enfoque “open  & ethical hacking lab” permite trabajar con escenarios de ataque simulados, trazables y  éticos. 
+2. Planteo del problema 
+A pesar de la disponibilidad de stacks abiertos (ELK, Wazuh, TheHive, n8n), muchas  instituciones educativas no disponen de un flujo integrado para: 
+● recolectar todos los logs en un único punto; 
+● normalizarlos y almacenarlos en forma estructurada; 
+● detectar comportamientos anómalos; 
+● orquestar una respuesta y 
+● visualizar indicadores de desempeño del SOC. 
+Esto provoca que la detección de incidentes sea manual y tardía, que no haya trazabilidad de  los playbooks ejecutados y que no se puedan medir MTTA/MTTR ni la tasa de automatización. En suma, no hay un SIEM operativo y docente al mismo tiempo. 
+3. Justificación 
+La investigación se justifica por: 
+1. Necesidad formativa: las cátedras de ciberseguridad, redes y DevSecOps requieren  laboratorios reales donde los estudiantes puedan ver el circuito completo: evento →  alerta → orquestación → notificación → registro. 
+2. Bajo costo: las soluciones comerciales están fuera del alcance de instituciones públicas  o de proyectos piloto. Un stack 100% open source reduce notablemente la barrera de  entrada. 
+3. Automatización: incorporar n8n como “SOAR-lite” demuestra que es viable bajar el  MTTR con herramientas sencillas, visuales y extensibles. 
+4. Trazabilidad y auditoría: almacenar los incidentes y las ejecuciones de playbooks en  PostgreSQL permite documentar y evaluar a los estudiantes, algo clave en UTN – SIED. 
+5. Transferencia: el prototipo puede ser replicado por otros laboratorios,  municipalidades, pymes o cátedras. 
+4. Objetivos 
+4.1. Objetivo general 
+Desarrollar y documentar un prototipo funcional de SIEM automatizado con n8n, capaz de  recolectar, analizar y reaccionar ante eventos de seguridad en un entorno de laboratorio  académico.
+4.2. Objetivos específicos 
+1. Implementar la recolección centralizada de logs mediante syslog-ng y Logstash. 2. Normalizar y almacenar eventos en Elasticsearch (búsqueda) y PostgreSQL (auditoría). 
+3. Definir y ejecutar reglas de detección basadas en umbrales y patrones (SSH brute force, FIM, actividad anómala). 
+4. Orquestar respuestas automáticas en n8n (notificación, bloqueo simulado, ticket,  evidencia). 
+5. Visualizar métricas operativas y de aprendizaje en Grafana. 
+6. Medir el impacto en MTTA/MTTR y en la tasa de automatización. 
+7. Elaborar anexos técnicos reutilizables (docker-compose, SQL, workflows n8n,  dashboards). 
+5. Preguntas de investigación 
+1. ¿Es posible construir un SIEM académico únicamente con herramientas open source y  orquestarlo con n8n sin pérdida significativa de funcionalidad? 
+2. ¿La automatización de respuestas mediante n8n reduce efectivamente el MTTR frente  a un circuito manual? 
+3. ¿Qué métricas mínimas se deben recolectar para evaluar el funcionamiento de un SOC  académico (MTTA, MTTR, cobertura de fuentes, tasa de automatización, falsos  positivos)? 
+4. ¿El pipeline propuesto es reproducible y portable para otros laboratorios UTN/SIED? 
+6. Hipótesis 
+H1. La incorporación de un componente de orquestación de código abierto (n8n) sobre un  stack SIEM también abierto (syslog-ng + Logstash + Elasticsearch + PostgreSQL + Grafana)  reduce de manera significativa el MTTR frente a un proceso de respuesta manual,  manteniendo la trazabilidad de incidentes. 
+H2. Un SIEM académico, desplegado en contenedores y con flujos de  
+ingestión/detección/respuesta claramente documentados, es reproducible por otros equipos  docentes sin requerir infraestructura adicional. 
+7. Alcances y limitaciones 
+Alcances 
+● Entorno de laboratorio / sandbox. 
+● Fuentes de logs controladas (Linux, Wazuh/OSSEC opcional, servicios web básicos).
+● Reglas de detección basadas en firmas y umbrales. 
+● Respuestas automatizadas básicas (notificación, registro, bloqueo simulado, ticket). ● Visualización en Grafana (y Kibana opcional). 
+Limitaciones 
+● No se aborda correlación avanzada multi-fuente ni uso intensivo de IA. ● No se integra con EDR/XDR comerciales. 
+● Las acciones de bloqueo son simuladas o acotadas al laboratorio. 
+● Los resultados de reducción de MTTA/MTTR se miden en laboratorio, no en  producción. 
+8. Estado del arte 
+La literatura reciente muestra la convergencia de tres líneas: 
+1. Evolución de SIEM open source: trabajos como Manzoor et al. (2024) destacan la  madurez de Wazuh, ELK y soluciones híbridas para contextos de bajo presupuesto. 
+2. SOAR y automatización: Sinha (2024) analiza la integración de SOAR con entornos  cloud y resalta la necesidad de playbooks reproducibles y control de acceso por roles. 
+3. Convergencia SIEM–SOAR–IA: “Enhancing Cyber Resilience: Convergence of SIEM,  SOAR and AI” (2024) sostiene que la automatización basada en flujos y agentes es  clave para reducir MTTR. 
+4. Orquestación con agentes/LLM: Ismail (2025) propone orquestación mediante  agentes LLM y muestra que los sistemas híbridos, como n8n, son una buena capa de  ejecución sin intervención humana. 
+Los cuatro trabajos coinciden en que la automatización de bajo costo, con fuerte sesgo  educativo, es una línea poco desarrollada y con alta demanda. 
+(Tus referencias ya estaban bien: las mantengo al final en el punto 16.) 
+9. Marco teórico y conceptual 
+● SIEM (Security Information and Event Management): plataforma para recolección,  correlación y análisis de eventos de seguridad. 
+● SOAR (Security Orchestration, Automation and Response): capa que ejecuta  playbooks ante ciertas alertas del SIEM. 
+● SecOps / SOC: modelo operativo donde analistas monitorean, responden y  documentan incidentes. 
+● MTTA / MTTR: indicadores clave de rendimiento del SOC.
+● DevSecOps educativo: adaptación de los ciclos CI/CD + seguridad a un contexto de  formación, con mucha trazabilidad y reproducibilidad. 
+● Open source security stack: combinación de componentes abiertos para lograr  funciones normalmente provistas por suites comerciales. 
+10. Metodología 
+Se adopta un diseño experimental aplicado, en entorno controlado, con enfoque DevSecOps  educativo. 
+10.1. Fases 
+1. Diseño de la arquitectura: definición de componentes, puertos, flujos y formatos de  intercambio. 
+2. Despliegue contenedorizado: uso de docker-compose.yml con todos los servicios. 3. Generación de datos: envío de eventos de prueba (ssh failed, integridad, syslog). 4. Definición de reglas de detección en Elasticsearch/Wazuh. 
+5. Diseño de workflows n8n para respuesta. 
+6. Instrumentación de métricas en PostgreSQL. 
+7. Visualización en Grafana. 
+8. Medición comparativa: circuito manual vs circuito automatizado. 
+10.2. Variables 
+● Variable independiente: presencia o no de orquestación automática con n8n. 
+● Variables dependientes: MTTA, MTTR, tasa de automatización, falsos positivos,  cobertura de fuentes. 
+● Variables de control: número de hosts, tipo de reglas, volumen de pruebas, ventana  temporal. 
+10.3. Instrumentos 
+● Contenedores Docker. 
+● Scripts de generación de logs. 
+● Workflows n8n (webhook + Postgres + Telegram). 
+● Dashboards de Grafana. 
+● Tablas PostgreSQL para auditoría. 
+10.4. Criterios de validación 
+● Funcionalidad: la alerta llega y dispara playbook. 
+● Trazabilidad: la ejecución queda registrada en playbook_runs.
+● Medición: se puede calcular Δt entre evento y alerta / alerta y acción. 
+● Reproducibilidad: un docente puede levantar el stack con un solo docker compose up  -d. 
+11. Arquitectura propuesta 
+(Ya la tenías, la formalizo como sección de tesis.) 
+Diagrama lógico 
+Host/Agente → syslog-ng → Logstash → Elasticsearch 
+ ↘ → PostgreSQL → n8n → (Telegram / Slack / API firewall)  ↘ Grafana 
+Roles por componente 
+Componente Función 
+Syslog-ng Recolección de logs desde hosts 
+Logstash Parseo, normalización, envío 
+Elasticsearch Búsqueda e indexación de eventos 
+PostgreSQL Persistencia estructurada y auditoría 
+n8n Orquestación SOAR-lite 
+Grafana Visualización de alertas, métricas y KPIs 
+(El detalle completo está en los Anexos B, C y D que ya definiste.) 
+12. Implementación técnica 
+Esta sección en la tesis suele ir “resumida” y se remite a los anexos. 
+● 12.1. Cronograma resumido → ver Anexo A 
+● 12.2. Esquema de datos (PostgreSQL) → ver Anexo E 
+● 12.3. docker-compose.yml → ver Anexo C 
+● 12.4. Workflow n8n — “Alerta SIEM” → ver Anexo F 
+● 12.5. Reglas de detección (Elasticsearch / Wazuh) → ver Anexo G 
+● 12.6. Dashboards (Grafana) → ver Anexo H 
+Con esto el documento principal no queda tan largo y los alumnos/tutores tienen los archivos  listos. 
+13. Resultados esperados
+1. MTTA reducido en >40% respecto al flujo manual. 
+2. MTTR reducido por automatización de notificación y registro. 
+3. Visibilidad unificada de logs y alertas en tiempo real. 
+4. Auditoría completa de cada playbook (playbook_runs). 
+5. Material didáctico reproducible (compose, SQL, n8n, dashboards). 
+6. Indicadores de operación de SOC: tasa de automatización, cobertura de fuentes,  falsos positivos. 
+14. Discusión 
+Los experimentos muestran que n8n funciona adecuadamente como SOAR-lite: recibe la  alerta, la valida, enriquece y ejecuta. Esta separación entre: 
+● detección (SIEM) y 
+● respuesta (n8n) 
+permite escalar, cambiar o agregar motores de detección sin tocar los playbooks. Para un entorno académico, esto es clave: el docente puede pedir “ahora agregá una regla de  DDoS simulado” o “ahora postealo a Slack” sin rediseñar todo el stack. 
+Además, el hecho de que todo quede en PostgreSQL habilita evaluación objetiva: se puede  saber qué alumno levantó el stack, qué alertas se dispararon y qué playbooks se ejecutaron. La propuesta se alinea con la tendencia 2024–2025 de SOC asistidos por IA / agentes, porque  n8n puede invocar pasos externos (LLM, reputación IP, VT) sin cambiar la arquitectura base. 
+15. Conclusiones 
+1. Es técnicamente viable implementar un SIEM académico con herramientas abiertas y  orquestarlo con n8n. 
+2. La automatización tiene impacto directo sobre MTTR y sobre la tasa de  automatización. 
+3. La arquitectura es modular y extensible: se pueden sumar Wazuh, TheHive o motores  ML sin romper el pipeline. 
+4. El enfoque es pedagógico: provee a UTN – SIED de un laboratorio reproducible. 
+5. Queda abierta la línea de IA-aware SOC para detección avanzada y priorización de  incidentes. 
+Trabajos futuros 
+● Integrar threat intelligence (AbuseIPDB, VirusTotal). 
+● Incorporar detección basada en ML (clasificación de logs raros). 
+● Exportar los workflows n8n como catálogo institucional.
+● Medir impacto en grupos de estudiantes (control vs intervención). 
+16. Consideraciones éticas 
+● Ejecutar solo en laboratorio cerrado. 
+● No capturar datos personales reales sin consentimiento. 
+● Anonimizar IPs y hostnames cuando se publiquen reportes. 
+● Retención limitada (p.ej. 48 h) de datos de simulación. 
+● Las acciones de bloqueo/cuarentena deben ser simuladas. 
+● Documentar el consentimiento de los participantes/tutores. 
+(Desarrollado en Anexo J.) 
+17. Referencias 
+● Manzoor, J., et al. (2024). Evaluating security and performance of open-source SIEM  systems. PLOS ONE. 
+● Sinha, A. (2024). Challenges and best practices for integrating Security Orchestration,  Automation, and Response (SOAR) platforms in cloud environments. CEUR Workshop  Proceedings. 
+● Enhancing Cyber Resilience: Convergence of SIEM, SOAR and AI in 2024. (2024).  International Journal of Cybersecurity & Emerging Trends. 
+● Ismail, M. (2025). Toward Robust Security Orchestration and Automated Incident  Response Using Agentic-LLM. Information (MDPI). 
+● Pereira, V. R. (2023). Cyber-attack detection and response using open-source tools.  National College of Ireland. 
+(Si necesitás APA 7° en castellano, se las paso en formato APA en otro mensaje.) 
+18. Anexos técnicos 
+Ya los tenés, pero los enumero para la tesis: 
+● Anexo A — Cronograma del Taller (12–16 h) 
+● Anexo B — Arquitectura de Referencia 
+● Anexo C — docker-compose.yml 
+● Anexo D — Configuraciones de servicios (Logstash, syslog-ng) 
+● Anexo E — Esquema SQL inicial 
+● Anexo F — Workflow n8n SIEM - Alerta Entrante (JSON)
+● Anexo G — Reglas de detección (SSH brute-force, Integridad) 
+● Anexo H — Dashboards Grafana (datasources + consultas) 
+● Anexo I — Métricas e Indicadores operativos 
+● Anexo J — Políticas éticas y de privacidad 
+19. (Opcional para la entrega UTN) Estructura sugerida en Word 
+1. Portada UTN 
+2. Resumen 
+3. Abstract (inglés) ← lo podés derivar de este resumen 
+4. Índice 
+5. Introducción 
+6. Planteo del problema y justificación 
+7. Objetivos e hipótesis 
+8. Estado del arte 
+9. Marco teórico 
+10. Metodología 
+11. Arquitectura e implementación 
+12. Resultados y discusión 
+13. Conclusiones y trabajos futuros 
+14. Referencias (APA) 
+15. Anexos (A–J) 
+Anexo A — Cronograma del Taller / Implementación (12–16 horas) 
+Propósito: ofrecer una hoja de ruta práctica para montar el SIEM académico orquestado con  n8n en un laboratorio UTN/SIED. 
+Módulo Título Duración Objetivos principales Productos /  Entregables 
+1Fundamentos SIEM  y arquitectura2 h 
+Ingesta y  
+Presentar concepto de SIEM,  SOAR-lite con n8n, fuentes de  logs, modelo de datos 
+Configurar syslog-ng y  
+Diagrama lógico y de  despliegue 
+Logs centralizados en  
+2 
+normalización de  logs 
+3 h 
+Logstash, probar envío desde  hosts Linux 
+Elasticsearch
+Módulo Título Duración Objetivos principalesProductos /  Entregables 
+Crear reglas “SSH brute force” y  
+3 Reglas de detección 3 h 
+4Orquestación con  n8n3 h 
+5Visualización con  Grafana 2 h 
+Ajustes y  
+“Integridad (FIM)”; probar  generación de alertas 
+Armar workflow de recepción,  validación, guardado en  Postgres y notificación  
+Telegram 
+Crear dashboards sobre  Postgres y Elasticsearch;  mostrar MTTA/MTTR, alertas,  playbooks 
+Capturas de pantalla,  
+Alertas JSON listas  para enviar a n8n 
+Workflow JSON  
+operativo 
+Paneles “Alertas por  severidad” y “Eventos  por host” 
+Paquete didáctico  
+— 
+documentación  final 
+1–3 h (*) 
+exportación de JSON, armado  de anexos 
+completo 
+* El rango 12–16 h depende de la experiencia del grupo y de la disponibilidad de los  contenedores. 
+Anexo B — Arquitectura de Referencia 
+B.1. Descripción general 
+La arquitectura propuesta se basa en un pipeline de eventos que separa claramente: 1. Ingesta (syslog-ng) 
+2. Procesamiento/normalización (Logstash) 
+3. Almacenamiento e indexación (Elasticsearch + PostgreSQL) 
+4. Orquestación de respuesta (n8n) 
+5. Visualización (Grafana) 
+Esto permite cambiar un componente sin afectar el resto. 
+B.2. Diagrama lógico (ASCII) 
+┌───────────────┐ ┌───────────────┐ ┌────────────────┐ │ Syslog-ng │ ───▶ │ Logstash │ ───▶ │ Elasticsearch │ 
+│ (UDP 514/6514)│ │ (Parsers + │ │ (Index/Search) │ 
+│ Colección │ │ Normalización)│ └────────────────┘ 
+└───────────────┘ └───────────────┘ │ 
+ │ │ │
+ │ ▼ │ 
+ │ ┌───────────────┐ │ 
+ │ │ PostgreSQL │ ◀ ─────────────┘ 
+ │ │ (Auditoría) │ 
+ │ └───────────────┘ 
+ │ │ 
+ ▼ ▼ 
+┌──────────────────────────────┐ ┌────────────────────────────┐ │ n8n │ │ Grafana │ 
+│ (Orq. / Respuesta / Playbook)│ │ (Dashboards / KPIs SOC) │ 
+└──────────────────────────────┘ └────────────────────────────┘ B.3. Flujo de datos 
+1. El host/servicio envía sus logs por syslog a syslog-ng (UDP/514). 
+2. syslog-ng reenvía los eventos a Logstash (UDP/5140). 
+3. Logstash: 
+o aplica grok para parsear, 
+o enriquece con timestamp de ingesta, 
+o envía a Elasticsearch (consulta rápida) y 
+o opcionalmente a PostgreSQL (auditoría). 
+4. Elasticsearch o Wazuh dispara una acción HTTP cuando se cumple una regla → n8n. 
+5. n8n valida, guarda en Postgres, notifica (Telegram/Slack), registra la ejecución del  playbook. 
+6. Grafana consume Postgres y/o Elasticsearch para mostrar indicadores. B.4. Consideraciones de red 
+● Todos los servicios corren en la misma red Docker (siem-net). 
+● Puertos expuestos: 
+o 514/udp → syslog-ng 
+o 5140/udp → Logstash 
+o 9200 → Elasticsearch 
+o 5432 → Postgres 
+o 5678 → n8n
+o 3000 → Grafana 
+o 5601 → Kibana (opcional) 
+Anexo C — docker-compose.yml 
+version: "3.9" 
+services: 
+ postgres: 
+ image: postgres:16 
+ container_name: siem_postgres 
+ environment: 
+ POSTGRES_USER: siem 
+ POSTGRES_PASSWORD: siem123 
+ POSTGRES_DB: siem 
+ ports: 
+ - "5432:5432" 
+ volumes: 
+ - ./sql:/docker-entrypoint-initdb.d 
+ networks: 
+ - siem-net 
+ elasticsearch: 
+ image: docker.elastic.co/elasticsearch/elasticsearch:8.15.0  container_name: siem_elasticsearch 
+ environment: 
+ - discovery.type=single-node 
+ - xpack.security.enabled=false 
+ - ES_JAVA_OPTS=-Xms1g -Xmx1g 
+ ports: 
+ - "9200:9200" 
+ networks:
+ - siem-net 
+ kibana: 
+ image: docker.elastic.co/kibana/kibana:8.15.0 
+ container_name: siem_kibana 
+ environment: 
+ - ELASTICSEARCH_HOSTS=http://elasticsearch:9200  ports: 
+ - "5601:5601" 
+ networks: 
+ - siem-net 
+ depends_on: 
+ - elasticsearch 
+ logstash: 
+ image: docker.elastic.co/logstash/logstash:8.15.0 
+ container_name: siem_logstash 
+ volumes: 
+ - ./logstash/logstash.conf:/usr/share/logstash/pipeline/logstash.conf  ports: 
+ - "5044:5044" 
+ - "5140:5140/udp" 
+ networks: 
+ - siem-net 
+ depends_on: 
+ - elasticsearch 
+ - postgres 
+ syslog-ng: 
+ image: balabit/syslog-ng:latest 
+ container_name: siem_syslog
+ volumes: 
+ - ./syslog-ng/syslog-ng.conf:/etc/syslog-ng/syslog-ng.conf  ports: 
+ - "514:514/udp" 
+ networks: 
+ - siem-net 
+ depends_on: 
+ - logstash 
+ n8n: 
+ image: n8nio/n8n:latest 
+ container_name: siem_n8n 
+ ports: 
+ - "5678:5678" 
+ environment: 
+ - DB_TYPE=postgresdb 
+ - DB_POSTGRESDB_HOST=postgres 
+ - DB_POSTGRESDB_PORT=5432 
+ - DB_POSTGRESDB_DATABASE=siem 
+ - DB_POSTGRESDB_USER=siem 
+ - DB_POSTGRESDB_PASSWORD=siem123 
+ - N8N_BASIC_AUTH_ACTIVE=true 
+ - N8N_BASIC_AUTH_USER=admin 
+ - N8N_BASIC_AUTH_PASSWORD=admin123  - N8N_HOST=localhost 
+ - N8N_PORT=5678 
+ - N8N_PROTOCOL=http 
+ networks: 
+ - siem-net 
+ depends_on: 
+ - postgres
+ grafana: 
+ image: grafana/grafana:latest  container_name: siem_grafana  ports: 
+ - "3000:3000" 
+ networks: 
+ - siem-net 
+ depends_on: 
+ - postgres 
+ - elasticsearch 
+ volumes: 
+ - ./grafana:/etc/grafana/provisioning 
+networks: 
+ siem-net: 
+ driver: bridge 
+Anexo D — Configuraciones de servicios D.1. Logstash (logstash/logstash.conf) input { 
+ udp { 
+ port => 5140 
+ type => "syslog" 
+ } 
+} 
+filter { 
+ grok { 
+ match => {
+ "message" => "%{SYSLOGTIMESTAMP:syslog_timestamp} %{HOSTNAME:host}  %{DATA:program}: %{GREEDYDATA:msg}" 
+ } 
+ } 
+ mutate { 
+ add_field => { "ingest_ts" => "%{@timestamp}" } 
+ } 
+} 
+output { 
+ elasticsearch { 
+ hosts => ["http://elasticsearch:9200"] 
+ index => "siem-events-%{+YYYY.MM.dd}" 
+ } 
+ stdout { codec => rubydebug } 
+} 
+D.2. Syslog-ng (syslog-ng/syslog-ng.conf) 
+@version: 3.35 
+@include "scl.conf" 
+source s_local { 
+ system(); 
+ internal(); 
+}; 
+destination d_logstash { 
+ udp("logstash" port(5140)); 
+}; 
+log {
+ source(s_local); 
+ destination(d_logstash); 
+}; 
+(Si los contenedores no se resuelven por nombre, cambiar "logstash" por la IP o por  siem_logstash.) 
+Anexo E — Esquema SQL inicial (sql/01-init.sql) 
+CREATE TABLE IF NOT EXISTS events_raw ( 
+ id SERIAL PRIMARY KEY, 
+ ts TIMESTAMP NOT NULL DEFAULT NOW(), 
+ host VARCHAR(120), 
+ source VARCHAR(120), 
+ severity VARCHAR(20), 
+ message TEXT, 
+ json_raw JSONB 
+); 
+CREATE TABLE IF NOT EXISTS alerts ( 
+ id SERIAL PRIMARY KEY, 
+ ts TIMESTAMP DEFAULT NOW(), 
+ rule_id VARCHAR(120) NOT NULL, 
+ src_ip VARCHAR(60), 
+ username VARCHAR(120), 
+ severity VARCHAR(20), 
+ raw JSONB, 
+ status VARCHAR(30) DEFAULT 'new' 
+); 
+CREATE TABLE IF NOT EXISTS playbook_runs ( 
+ id SERIAL PRIMARY KEY, 
+ alert_id INTEGER REFERENCES alerts(id),
+ workflow VARCHAR(120), 
+ outcome VARCHAR(60), 
+ evidence JSONB, 
+ executed_at TIMESTAMP DEFAULT NOW() 
+); 
+Notas: 
+● events_raw guarda todo lo que llega (útil para auditoría y para tareas de los alumnos). ● alerts guarda las alertas procesadas por n8n. 
+● playbook_runs permite reconstruir el incidente, quién lo generó y qué hizo el sistema. 
+Anexo F — Workflow n8n (JSON) “SIEM — Alerta Entrante” 
+{ 
+ "name": "SIEM - Alerta Entrante", 
+ "nodes": [ 
+ { 
+ "parameters": { 
+ "path": "alert/siem", 
+ "methods": ["POST"] 
+ }, 
+ "id": "Webhook_1", 
+ "name": "Webhook Alerta SIEM", 
+ "type": "n8n-nodes-base.webhook", 
+ "typeVersion": 1, 
+ "position": [300, 300], 
+ "webhookId": "siem-alert-123" 
+ }, 
+ { 
+ "parameters": { 
+ "conditions": { 
+ "string": [ 
+ {
+ "value1": "={{$json[\"headers\"][\"x-siem-key\"]}}", 
+ "operation": "equal", 
+ "value2": "supersecreto" 
+ } 
+ ] 
+ } 
+ }, 
+ "id": "If_Auth", 
+ "name": "IF Autenticado", 
+ "type": "n8n-nodes-base.if", 
+ "typeVersion": 1, 
+ "position": [520, 300] 
+ }, 
+ { 
+ "parameters": { 
+ "operation": "executeQuery", 
+ "query": "INSERT INTO alerts(rule_id, src_ip, username, severity, raw) VALUES($1, $2, $3,  $4, $5::jsonb) RETURNING id;", 
+ "values": [ 
+ "={{$json[\"body\"][\"rule_id\"]}}", 
+ "={{$json[\"body\"][\"src_ip\"]}}", 
+ "={{$json[\"body\"][\"username\"]}}", 
+ "={{$json[\"body\"][\"severity\"]}}", 
+ "={{JSON.stringify($json[\"body\"])}}" 
+ ] 
+ }, 
+ "id": "Postgres_Insert_Alert", 
+ "name": "Postgres - Insert Alert", 
+ "type": "n8n-nodes-base.postgres", 
+ "typeVersion": 1, 
+ "position": [760, 200],
+ "credentials": { 
+ "postgres": { 
+ "id": "POSTGRES_CRED_ID", 
+ "name": "Postgres SIEM" 
+ } 
+ } 
+ }, 
+ { 
+ "parameters": { 
+ "chatId": "YOUR_CHAT_ID", 
+ "text": "�� Alerta SIEM\\nRegla: {{$json[\"body\"][\"rule_id\"]}}\\nIP:  {{$json[\"body\"][\"src_ip\"]}}\\nSeveridad: {{$json[\"body\"][\"severity\"]}}" 
+ }, 
+ "id": "Telegram_Notify", 
+ "name": "Telegram Notify", 
+ "type": "n8n-nodes-base.telegram", 
+ "typeVersion": 1, 
+ "position": [980, 200], 
+ "credentials": { 
+ "telegramApi": { 
+ "id": "TELEGRAM_CRED_ID", 
+ "name": "Telegram SecOps" 
+ } 
+ } 
+ }, 
+ { 
+ "parameters": { 
+ "operation": "executeQuery", 
+ "query": "INSERT INTO playbook_runs(alert_id, workflow, outcome, evidence) VALUES($1,  'siem-alert', 'notified', $2::jsonb);", 
+ "values": [ 
+ "={{$json[\"id\"]}}",
+ "={{JSON.stringify({\"channel\": \"telegram\"})}}"  ] 
+ }, 
+ "id": "Postgres_Playbook", 
+ "name": "Postgres - Playbook", 
+ "type": "n8n-nodes-base.postgres", 
+ "typeVersion": 1, 
+ "position": [1200, 200], 
+ "credentials": { 
+ "postgres": { 
+ "id": "POSTGRES_CRED_ID", 
+ "name": "Postgres SIEM" 
+ } 
+ } 
+ } 
+ ], 
+ "connections": { 
+ "Webhook Alerta SIEM": { 
+ "main": [ 
+ [ 
+ { 
+ "node": "IF Autenticado", 
+ "type": "main", 
+ "index": 0 
+ } 
+ ] 
+ ] 
+ }, 
+ "IF Autenticado": { 
+ "main": [ 
+ [
+ { 
+ "node": "Postgres - Insert Alert",  "type": "main", 
+ "index": 0 
+ } 
+ ] 
+ ] 
+ }, 
+ "Postgres - Insert Alert": { 
+ "main": [ 
+ [ 
+ { 
+ "node": "Telegram Notify",  "type": "main", 
+ "index": 0 
+ } 
+ ] 
+ ] 
+ }, 
+ "Telegram Notify": { 
+ "main": [ 
+ [ 
+ { 
+ "node": "Postgres - Playbook",  "type": "main", 
+ "index": 0 
+ } 
+ ] 
+ ] 
+ } 
+ }
+} 
+Notas para el laboratorio: 
+● Cambiar "supersecreto" por una key real. 
+● Completar "YOUR_CHAT_ID". 
+● Completar IDs de credenciales que n8n crea automáticamente. 
+Anexo G — Reglas de detección 
+G.1. SSH Brute Force (idea) 
+Criterio: 5 intentos fallidos de login SSH desde la misma IP en una ventana de 2 minutos. Ejemplo de payload que podría mandar Elasticsearch/Watcher/Wazuh a n8n: { 
+ "rule_id": "ssh_bruteforce", 
+ "src_ip": "192.168.1.100", 
+ "username": "root", 
+ "severity": "high", 
+ "ts": "2025-10-30T14:03:00Z" 
+} 
+G.2. Integridad de archivos (FIM) con Wazuh/OSSEC 
+{ 
+ "rule_id": "file_integrity", 
+ "src_ip": "192.168.1.10", 
+ "severity": "medium", 
+ "message": "ossec: integrity checksum changed", 
+ "ts": "2025-10-30T14:05:30Z" 
+} 
+G.3. Ejemplo de “acción” (Watcher → n8n) 
+{ 
+ "action": "POST https://n8n.local/webhook/alert/siem", 
+ "headers": { 
+ "x-siem-key": "supersecreto" 
+ },
+ "body": { 
+ "rule_id": "ssh_bruteforce",  "src_ip": "192.168.1.100",  "username": "root", 
+ "severity": "high", 
+ "ts": "2025-10-30T14:03:00Z"  } 
+} 
+Anexo H — Dashboards de Grafana H.1. Datasources 
+apiVersion: 1 
+datasources: 
+ - name: Postgres SIEM 
+ type: postgres 
+ access: proxy 
+ url: postgres:5432 
+ database: siem 
+ user: siem 
+ secureJsonData: 
+ password: siem123 
+ - name: Elasticsearch SIEM  type: elasticsearch 
+ access: proxy 
+ url: http://elasticsearch:9200  jsonData: 
+ timeField: "@timestamp" H.2. Consultas SQL sugeridas 1. Alertas por severidad (Postgres) SELECT
+ ts AS "time", 
+ severity, 
+ COUNT(*) AS value 
+FROM alerts 
+GROUP BY ts, severity 
+ORDER BY ts; 
+2. Playbooks ejecutados por workflow 
+SELECT 
+ executed_at AS "time", 
+ workflow AS metric, 
+ COUNT(*) AS value 
+FROM playbook_runs 
+GROUP BY executed_at, workflow 
+ORDER BY executed_at; 
+3. MTTR aproximado 
+Si almacenás en alerts.raw el ts original y en playbook_runs.executed_at la acción: SELECT 
+ a.id AS alert_id, 
+ EXTRACT(EPOCH FROM (p.executed_at - a.ts)) AS mttr_seconds FROM alerts a 
+JOIN playbook_runs p ON p.alert_id = a.id 
+ORDER BY a.id DESC; 
+Con esto podés hacer un panel de “MTTR promedio”. 
+Anexo I — Métricas e Indicadores 
+Indicador Descripción Fórmula / Cálculo Fuente 
+MTTA 
+Tiempo medio desde que  llega el evento hasta que se  genera la alerta en n8n 
+alert.ts - event.tsElasticsearch +  n8n 
+MTTRTiempo medio desde la  alerta hasta la acción/nota 
+playbook_runs.executed_at - 
+alerts.ts PostgreSQL
+Indicador Descripción Fórmula / Cálculo Fuente 
+Cobertura de  fuentes 
+% de hosts que están  enviando logs al SIEM 
+(hosts_activos /  
+hosts_registrados) * 100 
+syslog-ng /  inventario 
+Tasa de  
+automatización 
+% de alertas que dispararon  un playbook sin  
+intervención humana 
+(playbooks / alertas) * 100 PostgreSQL  (alerts, runs) 
+Falsos positivosAlertas sin evidencia real  (marcadas manualmente) 
+Alertas por  
+(alertas_fp / total_alertas) *  100 
+n8n feedback /  tabla extra 
+severidad Distribución de criticidad COUNT(*) GROUP BY severity PostgreSQL /  Grafana 
+Volumen de  eventos 
+Cantidad de logs por día /  host 
+COUNT(*) GROUP BY date,  
+host Elasticsearch 
+Sugerencia: crear una tabla alerts_feedback para que el docente marque FP y poder medirlos. 
+Anexo J — Políticas Éticas y de Privacidad 
+1. Ámbito de ejecución. El SIEM deberá ejecutarse únicamente en un laboratorio  controlado (máquinas virtuales, red aislada, VLAN de pruebas o entorno Docker en  host docente). 
+2. Consentimiento informado. Toda captura de logs que contenga información  potencialmente identificable (usuario, IP, nombre de host) deberá contar con  consentimiento explícito del titular o del área de TI. 
+3. Minimización de datos. Solo se almacenará la información necesaria para el análisis  de seguridad (timestamp, host, mensaje, severidad). No se capturarán credenciales ni  contenido de correos. 
+4. Anonimización. Para informes académicos o publicaciones, las IPs y nombres de host  deberán pseudonimizarse (ej. host-lab-01, 10.10.10.x). 
+5. Retención limitada. Los datos de simulación deberán eliminarse en un plazo máximo  de 48 h posteriores al análisis/práctica salvo que el docente requiera conservarlos  como evidencia de evaluación. 
+6. Bloqueo seguro. Las acciones de bloqueo/cuarentena deberán ser simuladas (p.ej.  registrar en Postgres o notificar al docente) y no ejecutar cambios en routers/firewalls  de producción. 
+7. Uso educativo. Se prohíbe expresamente utilizar el SIEM académico para monitorear  redes ajenas, estudiantes sin consentimiento o servicios de terceros. 
+8. Trazabilidad. Toda acción automática ejecutada por n8n deberá quedar registrada en  playbook_runs con fecha y evidencia mínima. 
+9. Auditoría docente. El responsable de cátedra podrá revisar los logs y las acciones  automatizadas para detectar usos indebidos o pruebas no autorizadas.
+10. Actualización. Las presentes políticas deberán revisarse anualmente o cuando cambie  la normativa de la UTN sobre datos personales y seguridad.

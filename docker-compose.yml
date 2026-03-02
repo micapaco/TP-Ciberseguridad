@@ -139,23 +139,11 @@ services:
       - wazuh_wodles:/var/ossec/wodles
     networks:
       - siem-net
-
-  wazuh-dashboard:
-    image: wazuh/wazuh-dashboard:4.7.0
-    container_name: siem_wazuh_dashboard
-    hostname: wazuh-dashboard
-    restart: unless-stopped
-    ports:
-      - "8443:5601"
-    environment:
-      - OPENSEARCH_HOSTS=http://elasticsearch:9200
-      - WAZUH_API_URL=https://wazuh-manager
-      - API_USERNAME=wazuh-wui
-      - API_PASSWORD=MyS3cr37P450r.*-
-    depends_on:
-      - wazuh-manager
-    networks:
-      - siem-net
+  # NOTA: wazuh-dashboard fue removido porque requiere OpenSearch como backend,
+  # pero este stack utiliza Elasticsearch, lo cual los hace incompatibles.
+  # La detección FIM sigue funcionando a través de wazuh-manager + el script
+  # detector/wazuh_fim_to_n8n.py que envía las alertas directamente a n8n.
+  # La visualización se realiza en Grafana, que sí es compatible con ambos backends.
 
 networks:
   siem-net:
