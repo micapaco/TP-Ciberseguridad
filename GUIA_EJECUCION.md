@@ -255,8 +255,10 @@ python detector\ssh_bruteforce_detector.py
 cd C:\TP-Final
 
 # Enviar 6 intentos de login fallidos (simula ataque)
+# IMPORTANTE: Se usa timestamp actual en UTC para que el detector los encuentre
+$ts = (Get-Date).ToUniversalTime().ToString("MMM dd HH:mm:ss", [System.Globalization.CultureInfo]::InvariantCulture)
 for ($i = 1; $i -le 6; $i++) {
-    $message = "<34>Feb 06 16:00:00 testhost sshd[12345]: Failed password for invalid user admin from 10.0.0.99 port 22 ssh2"
+    $message = "<34>${ts} testhost sshd[12345]: Failed password for invalid user admin from 10.0.0.99 port 22 ssh2"
     $udpClient = New-Object System.Net.Sockets.UdpClient
     $bytes = [System.Text.Encoding]::ASCII.GetBytes($message)
     $udpClient.Send($bytes, $bytes.Length, "localhost", 514)
