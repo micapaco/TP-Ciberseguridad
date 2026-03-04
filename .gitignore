@@ -18,15 +18,24 @@ __pycache__/
 venv/
 env/
 
+# Variables de entorno (contraseñas)
+.env
+
 # Sistema
 .DS_Store
 Thumbs.db
 *.swp
 *.bak
 
+# IDEs
+.vscode/
+.idea/
+*.code-workspace
+
 # Temporales
 tmp/
 temp/
-GUION_VIDEO.md 
-walkthrough.md 
-GUION_VIDEO.md 
+
+# Archivos personales (no subir)
+GUION_VIDEO.md
+walkthrough.md
