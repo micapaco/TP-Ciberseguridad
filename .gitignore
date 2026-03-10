@@ -39,3 +39,10 @@ temp/
 # Archivos personales (no subir)
 GUION_VIDEO.md
 walkthrough.md
+# Archivos excluidos
+*.pdf
+tesis_siem_utn.txt
+GUION_DIAPOSITIVAS.md
+GUION_VOZ.md
+MEJORAS_N8N.md
+extensiones_siem.txt
