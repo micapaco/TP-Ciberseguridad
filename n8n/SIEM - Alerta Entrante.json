@@ -1,0 +1,734 @@
+{
+  "name": "SIEM - Alerta Entrante",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "alert/siem",
+        "authentication": "headerAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -800,
+        -32
+      ],
+      "id": "2aabd950-7001-44bf-9ca4-77e6860f6e0f",
+      "name": "Webhook",
+      "webhookId": "2038d281-59b7-4db6-924d-58bf76238ebf",
+      "retryOnFail": false,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "nCUKUjH9bzUkHQnQ",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO alerts(rule_id, src_ip, username, severity, raw)\nVALUES (\n'{{ $node[\"Enriquecer Datos\"].json.body.rule_id }}',\n'{{ $node[\"Enriquecer Datos\"].json.body.src_ip }}',\n'{{ $node[\"Enriquecer Datos\"].json.body.username }}',\n'{{ $node[\"Enriquecer Datos\"].json.body.severity }}',\n'{{ JSON.stringify($node[\"Enriquecer Datos\"].json.body || {}) }}'::jsonb\n)\nRETURNING id;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        384,
+        -96
+      ],
+      "id": "a90b2369-33fb-4655-8121-d5bdfdc17e9a",
+      "name": "Insertar Alerta",
+      "retryOnFail": true,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "postgres": {
+          "id": "AIctheJOuaGPqoGM",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO playbook_runs(alert_id, workflow, outcome)\nVALUES({{ $('Insertar Alerta').item.json.id }}, 'SIEM-Alert', 'success')\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1200,
+        -80
+      ],
+      "id": "a0944443-1fef-472f-88af-c31861523ea7",
+      "name": "Registrar Playbook",
+      "retryOnFail": true,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "postgres": {
+          "id": "AIctheJOuaGPqoGM",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "8c88aca7-0efc-469c-88c7-4104368c6156",
+              "name": "priority",
+              "value": "={{\n  $json.severity === \"critical\" ? \"P1-URGENTE\" :\n  $json.severity === \"high\" ? \"P2-ALTA\" :\n  \"P3-NORMAL\"\n}}",
+              "type": "string"
+            },
+            {
+              "id": "52dfbe17-afd2-47d0-98ad-4533a73e7339",
+              "name": "classification",
+              "value": "={{ $json.body.rule_id.includes(\"ssh\") ? \"Ataque de acceso\" : \"Integridad de archivos\" }}",
+              "type": "string"
+            },
+            {
+              "id": "94f937e1-a37c-4b29-920a-36f3bd968765",
+              "name": "rule_id",
+              "value": "={{ $json.body.rule_id }}",
+              "type": "string"
+            },
+            {
+              "id": "077e4cc0-8e28-4caf-8bba-3ff55b10ace9",
+              "name": "src_ip",
+              "value": "={{ $json.body.src_ip }}",
+              "type": "string"
+            },
+            {
+              "id": "64f1c0b0-80ba-4a76-8fed-68d37b5cd677",
+              "name": "username",
+              "value": "={{ $json.body.username }}",
+              "type": "string"
+            },
+            {
+              "id": "e662b2da-60c5-4ca8-a8df-dbc3f4ebbe6e",
+              "name": "severity",
+              "value": "={{$json.body.severity?.toLowerCase() || \"normal\"}}",
+              "type": "string"
+            },
+            {
+              "id": "05353f72-8bb2-4bf2-afaa-8f07c4ad220f",
+              "name": "timestamp",
+              "value": "={{ $json.body.timestamp }}",
+              "type": "string"
+            },
+            {
+              "id": "20bb9c91-c154-4196-92c2-807473dae184",
+              "name": "raw_body",
+              "value": "={{ JSON.stringify($json.body) }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -592,
+        -32
+      ],
+      "id": "2c4e376b-9cc0-4b36-aa73-2a2a60222fff",
+      "name": "Enriquecer Datos"
+    },
+    {
+      "parameters": {
+        "chatId": "6196734302",
+        "text": "={{ $('Enriquecer Datos').item.json.severity === \"critical\" ? \"🚨 ALERTA CRÍTICA SIEM\" : \"⚠️ ALERTA ALTA SIEM\" }} — #{{ $('Insertar Alerta').item.json.id }}\n\n{{ $('Enriquecer Datos').item.json.severity === \"critical\" ? \"🔴\" : \"🟠\" }} Severidad: {{ $('Enriquecer Datos').item.json.severity.toUpperCase() }}\n🧠 Tipo de incidente: {{ $('Enriquecer Datos').item.json.classification }}\n\n📜 Regla: {{ $('Enriquecer Datos').item.json.rule_id }}\n\n🌐 IP Origen: {{ $('Enriquecer Datos').item.json.src_ip }}\n👤 Usuario: {{ $('Enriquecer Datos').item.json.username }}\n\n⏱ Hora: {{ $('Enriquecer Datos').item.json.timestamp }}\n\n━━━━━━━━━━━━━━━━━━\n🔍 Threat Intelligence (AbuseIPDB):\n🏴 País: {{ $('Consultar AbuseIPDB').item.json.data.countryCode || 'N/A' }}\n⚠️ Score de abuso: {{ $('Consultar AbuseIPDB').item.json.data.abuseConfidenceScore || 0 }}%\n📊 Reportes totales: {{ $('Consultar AbuseIPDB').item.json.data.totalReports || 0 }}\n🏢 ISP: {{ $('Consultar AbuseIPDB').item.json.data.isp || 'Desconocido' }}\n━━━━━━━━━━━━━━━━━━\n\n📘 Playbook ejecutado: SIEM-Alert\n",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1440,
+        -112
+      ],
+      "id": "24aef771-6736-43e8-a358-e246832ad092",
+      "name": "Enviar Mensaje",
+      "webhookId": "e92aa5bd-113f-417c-9fa0-8336d6363e8e",
+      "retryOnFail": true,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "telegramApi": {
+          "id": "ESrWgMTKlJIEugIN",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{$json.severity}}",
+                    "rightValue": "critical",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "892af5b7-c548-4658-930b-8eb10c981f20"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "e53857fc-4520-4dfd-9e63-62d77a951303",
+                    "leftValue": "={{$json.severity}}",
+                    "rightValue": "high",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        -384,
+        -32
+      ],
+      "id": "c3083a3c-76b7-41cb-90e3-614b9993b843",
+      "name": "Filtrar por Severidad"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT COUNT(*) as attempts\nFROM alerts\nWHERE src_ip = $1\nAND rule_id = $2\nAND ts > NOW() - INTERVAL '10 minutes'",
+        "options": {
+          "queryReplacement": "={{$('Enriquecer Datos').item.json.src_ip}}, {{$('Enriquecer Datos').item.json.rule_id}}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        784,
+        -96
+      ],
+      "id": "65156500-d2da-4222-a88a-98814eebc0e6",
+      "name": "Contar Alertas",
+      "retryOnFail": true,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "postgres": {
+          "id": "AIctheJOuaGPqoGM",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "db1796c9-403a-41c0-8b43-698a331591fb",
+              "leftValue": "={{ Number($json.attempts) }}",
+              "rightValue": 5,
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        976,
+        -96
+      ],
+      "id": "8023c4bd-42a4-4deb-a9e6-e7b2725b6b75",
+      "name": "Detectar Ataque"
+    },
+    {
+      "parameters": {
+        "chatId": "6196734302",
+        "text": "=🚨 INCIDENTE DE SEGURIDAD DETECTADO\n\nID: {{$json.id}}\nTipo: Fuerza Bruta SSH\nSeveridad: {{$node[\"Enriquecer Datos\"].json.severity}}\n\n🌐 IP atacante: {{$node[\"Enriquecer Datos\"].json.src_ip}}\n👤 Usuario objetivo: {{$node[\"Enriquecer Datos\"].json.username}}\n\n⚠ Intentos detectados: {{$node[\"Contar Alertas\"].json.attempts}}\n\n📜 Regla SIEM: {{$node[\"Enriquecer Datos\"].json.rule_id}}\n\n━━━━━━━━━━━━━━━━━━\n🔍 Threat Intelligence (AbuseIPDB):\n🏴 País: {{ $node[\"Consultar AbuseIPDB\"].json.data.countryCode || 'N/A' }}\n⚠️ Score: {{ $node[\"Consultar AbuseIPDB\"].json.data.abuseConfidenceScore || 0 }}%\n📊 Reportes: {{ $node[\"Consultar AbuseIPDB\"].json.data.totalReports || 0 }}\n🏢 ISP: {{ $node[\"Consultar AbuseIPDB\"].json.data.isp || 'Desconocido' }}\n━━━━━━━━━━━━━━━━━━\n\n🕒 Detectado automáticamente por el playbook SIEM\n",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1984,
+        -544
+      ],
+      "id": "dce6a238-0c5b-4c6b-ba87-e30e1f80a3e1",
+      "name": "Mensaje especial",
+      "webhookId": "63d56961-bc28-498c-a9cb-c95dc9b67156",
+      "credentials": {
+        "telegramApi": {
+          "id": "ESrWgMTKlJIEugIN",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO incidents (type, src_ip, username, attempts, rule_id, severity)\nVALUES (\n'bruteforce',\n'{{ $node[\"Enriquecer Datos\"].json.src_ip }}',\n'{{ $node[\"Enriquecer Datos\"].json.username }}',\n{{ $node[\"Contar Alertas\"].json.attempts }},\n'{{ $node[\"Enriquecer Datos\"].json.rule_id }}',\n'{{ $node[\"Enriquecer Datos\"].json.severity }}'\n)\nRETURNING id;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1632,
+        -432
+      ],
+      "id": "69b4d343-be14-49d4-a8b4-74e691ed763a",
+      "name": "Crear Incidente",
+      "retryOnFail": true,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "postgres": {
+          "id": "AIctheJOuaGPqoGM",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT COUNT(*) AS total\nFROM incidents\nWHERE src_ip = $1\nAND rule_id = $2\nAND status = 'open'\nAND created_at > NOW() - INTERVAL '10 minutes';",
+        "options": {
+          "queryReplacement": "={{$('Enriquecer Datos').item.json.src_ip}}, {{$('Enriquecer Datos').item.json.rule_id}}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1232,
+        -416
+      ],
+      "id": "a1bc46c8-106e-406f-95e0-3f535d3a8d97",
+      "name": "Verificar Incidente Abierto",
+      "credentials": {
+        "postgres": {
+          "id": "AIctheJOuaGPqoGM",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "e7d87713-a0da-48fd-9645-d1aa15ff5593",
+              "leftValue": "={{ Number($json.total) }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1408,
+        -416
+      ],
+      "id": "da61a7da-612e-471b-9050-83841c06dabe",
+      "name": "¿Crear nuevo incidente?"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT COUNT(*) as total\nFROM incidents\nWHERE src_ip = $1\nAND status = 'open';",
+        "options": {
+          "queryReplacement": "={{$node[\"Enriquecer Datos\"].json.src_ip}}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -128,
+        0
+      ],
+      "id": "de8137dc-4fc1-46b5-b747-f9b6d6dd6882",
+      "name": "Verificar Incidente Activo",
+      "credentials": {
+        "postgres": {
+          "id": "AIctheJOuaGPqoGM",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "d996e8ff-c966-49fa-849a-f304f288146c",
+              "leftValue": "={{ Number($json.total) }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        112,
+        0
+      ],
+      "id": "e97d489a-6480-4964-9024-a2ffc51953b2",
+      "name": "¿Incidente ya existe?"
+    },
+    {
+      "parameters": {
+        "url": "https://api.abuseipdb.com/api/v2/check",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "=ipAddress",
+              "value": "={{ $node[\"Enriquecer Datos\"].json.body.src_ip }}"
+            },
+            {
+              "name": "maxAgeInDays",
+              "value": "90"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Key",
+              "value": "36f2503508ddf0b9cd54c4ae01644e9092e4a4b6314ac3ab744367dd8b0add6dda5a8ceeef158af1"
+            },
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        592,
+        -96
+      ],
+      "id": "875d843c-e6eb-49ed-a3bc-79eed3b22854",
+      "name": "Consultar AbuseIPDB",
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 3000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "fromEmail": "chicasuperpoderosas26@gmail.com",
+        "toEmail": "chicasuperpoderosas26@gmail.com",
+        "subject": "=🚨 INCIDENTE CRÍTICO — Ataque detectado desde {{ $node[\"Enriquecer Datos\"].json.body.src_ip }}",
+        "emailFormat": "text",
+        "text": "=🚨 INCIDENTE DE SEGURIDAD DETECTADO\n=====================================\n\n📋 Regla: {{ $node[\"Enriquecer Datos\"].json.body.rule_id }}\n🔴 Severidad: {{ $node[\"Enriquecer Datos\"].json.body.severity }}\n🌐 IP Origen: {{ $node[\"Enriquecer Datos\"].json.body.src_ip }}\n👤 Usuario: {{ $node[\"Enriquecer Datos\"].json.body.username }}\n⏰ Hora: {{ $node[\"Enriquecer Datos\"].json.body.timestamp }}\n\n🔍 Threat Intelligence (AbuseIPDB):\n   País: {{ $node[\"Consultar AbuseIPDB\"].json.data.countryCode || 'N/A' }}\n   Score de abuso: {{ $node[\"Consultar AbuseIPDB\"].json.data.abuseConfidenceScore || 0 }}%\n   Reportes: {{ $node[\"Consultar AbuseIPDB\"].json.data.totalReports || 0 }}\n   ISP: {{ $node[\"Consultar AbuseIPDB\"].json.data.isp || 'Desconocido' }}\n\n⚠️ Acción recomendada: Verificar actividad de la IP y considerar bloqueo.\n\n-- Este es un mensaje automático del sistema SIEM --\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        1984,
+        -336
+      ],
+      "id": "e9c2fa8b-7948-4b2f-92aa-7f56250e9011",
+      "name": "Email de Incidente",
+      "webhookId": "481eed32-e13d-445c-9177-1fc949461a0e",
+      "credentials": {
+        "smtp": {
+          "id": "Ty7FivWgzWlJLRel",
+          "name": "SMTP account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fromEmail": "chicasuperpoderosas26@gmail.com",
+        "toEmail": "chicasuperpoderosas26@gmail.com",
+        "subject": "=⚠️ ALERTA SIEM — {{ $node[\"Enriquecer Datos\"].json.body.severity }} — {{ $node[\"Enriquecer Datos\"].json.body.rule_id }}",
+        "emailFormat": "text",
+        "text": "=ALERTA SIEM DETECTADA\n\nRegla: {{ $node[\"Enriquecer Datos\"].json.body.rule_id }}\nSeveridad: {{ $node[\"Enriquecer Datos\"].json.body.severity }}\nIP Origen: {{ $node[\"Enriquecer Datos\"].json.body.src_ip }}\nUsuario: {{ $node[\"Enriquecer Datos\"].json.body.username }}\nHora: {{ $node[\"Enriquecer Datos\"].json.body.timestamp }}\n\nThreat Intelligence (AbuseIPDB):\n   País: {{ $node[\"Consultar AbuseIPDB\"].json.data.countryCode || 'N/A' }}\n   Score de abuso: {{ $node[\"Consultar AbuseIPDB\"].json.data.abuseConfidenceScore || 0 }}%\n   Reportes: {{ $node[\"Consultar AbuseIPDB\"].json.data.totalReports || 0 }}\n   ISP: {{ $node[\"Consultar AbuseIPDB\"].json.data.isp || 'Desconocido' }}\n\nEste es un mensaje automático del sistema SIEM.\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        1440,
+        80
+      ],
+      "id": "504bb570-9be4-4c44-91ac-cf796ad75c2f",
+      "name": "Email Alerta",
+      "webhookId": "343965fd-acb0-433d-8343-7a1ea2256619",
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "smtp": {
+          "id": "Ty7FivWgzWlJLRel",
+          "name": "SMTP account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Enriquecer Datos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insertar Alerta": {
+      "main": [
+        [
+          {
+            "node": "Consultar AbuseIPDB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Registrar Playbook": {
+      "main": [
+        [
+          {
+            "node": "Email Alerta",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Enviar Mensaje",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enriquecer Datos": {
+      "main": [
+        [
+          {
+            "node": "Filtrar por Severidad",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar Mensaje": {
+      "main": [
+        []
+      ]
+    },
+    "Filtrar por Severidad": {
+      "main": [
+        [
+          {
+            "node": "Verificar Incidente Activo",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Verificar Incidente Activo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Contar Alertas": {
+      "main": [
+        [
+          {
+            "node": "Detectar Ataque",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Detectar Ataque": {
+      "main": [
+        [
+          {
+            "node": "Verificar Incidente Abierto",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Registrar Playbook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Crear Incidente": {
+      "main": [
+        [
+          {
+            "node": "Mensaje especial",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Email de Incidente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verificar Incidente Abierto": {
+      "main": [
+        [
+          {
+            "node": "¿Crear nuevo incidente?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Crear nuevo incidente?": {
+      "main": [
+        [
+          {
+            "node": "Crear Incidente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verificar Incidente Activo": {
+      "main": [
+        [
+          {
+            "node": "¿Incidente ya existe?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Incidente ya existe?": {
+      "main": [
+        [
+          {
+            "node": "Insertar Alerta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Consultar AbuseIPDB": {
+      "main": [
+        [
+          {
+            "node": "Contar Alertas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email Alerta": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": "bGaeMTNdqbMcxXsF"
+  },
+  "versionId": "54e2137a-901c-4eee-bd94-1585dd427bc4",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "09bf4af348858f3d6b0a9389031960280925ad30b5c0fdf0067e1a99f071f3af"
+  },
+  "id": "6XEgeTOIEL6tEFXZ",
+  "tags": []
+}

@@ -1,0 +1,101 @@
+{
+  "name": "SIEM - Error Handler",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        736,
+        -160
+      ],
+      "id": "bf94330f-a019-40f0-976b-3ce7ecbbb9af",
+      "name": "Error Trigger"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO failed_alerts (error_node, error_message, alert_data)\nVALUES (\n  '{{ $json.execution.lastNodeExecuted }}',\n  '{{ $json.execution.error.description.substring(0, 200) }}',\n  '{}'::jsonb\n)\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1104,
+        -160
+      ],
+      "id": "664d1a7b-84f4-43ad-b3b5-9c04f87e0438",
+      "name": "Guardar Error en PostgreSQL",
+      "credentials": {
+        "postgres": {
+          "id": "AIctheJOuaGPqoGM",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "6196734302",
+        "text": "=❌ ERROR EN SIEM\n\n⚙️ Nodo: {{ $json.execution.lastNodeExecuted }}\n📋 Error: {{ $json.execution.error.message }}\n🔗 Workflow: {{ $json.execution.workflowData.name }}\n🔢 Ejecución: #{{ $json.execution.id }}\n\n⚠️ Revisar manualmente en n8n\n",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        912,
+        -160
+      ],
+      "id": "d9846796-5776-4cfd-ac0c-d145a823c759",
+      "name": "Notificar Error por Telegram",
+      "webhookId": "b6d93439-c4c8-4030-84a8-309082743757",
+      "credentials": {
+        "telegramApi": {
+          "id": "ESrWgMTKlJIEugIN",
+          "name": "Telegram account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Notificar Error por Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Guardar Error en PostgreSQL": {
+      "main": [
+        []
+      ]
+    },
+    "Notificar Error por Telegram": {
+      "main": [
+        [
+          {
+            "node": "Guardar Error en PostgreSQL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "versionId": "55bbabc2-e2fd-4256-b220-5299457ba704",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "09bf4af348858f3d6b0a9389031960280925ad30b5c0fdf0067e1a99f071f3af"
+  },
+  "id": "bGaeMTNdqbMcxXsF",
+  "tags": []
+}

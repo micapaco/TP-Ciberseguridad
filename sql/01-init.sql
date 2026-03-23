@@ -96,3 +96,38 @@ WHERE src_ip IS NOT NULL
 GROUP BY src_ip
 ORDER BY alert_count DESC
 LIMIT 10;
+
+-- ============================================
+-- TABLAS ADICIONALES
+-- ============================================
+
+-- Tabla de incidentes (gestión de ataques detectados)
+CREATE TABLE IF NOT EXISTS incidents (
+    id SERIAL PRIMARY KEY,
+    type TEXT,
+    src_ip TEXT,
+    username TEXT,
+    attempts INTEGER,
+    rule_id TEXT,
+    severity TEXT,
+    status TEXT DEFAULT 'open',
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_incidents_src_ip ON incidents(src_ip);
+CREATE INDEX IF NOT EXISTS idx_incidents_status ON incidents(status);
+
+-- Tabla de alertas fallidas (manejo de errores)
+CREATE TABLE IF NOT EXISTS failed_alerts (
+    id SERIAL PRIMARY KEY,
+    ts TIMESTAMP DEFAULT NOW(),
+    error_node TEXT,
+    error_message TEXT,
+    alert_data JSONB,
+    retry_count INTEGER DEFAULT 0,
+    resolved BOOLEAN DEFAULT false,
+    resolved_at TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_failed_alerts_ts ON failed_alerts(ts DESC);
+CREATE INDEX IF NOT EXISTS idx_failed_alerts_resolved ON failed_alerts(resolved);

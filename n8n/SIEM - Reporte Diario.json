@@ -1,0 +1,195 @@
+{
+  "name": "SIEM - Reporte Diario",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 8
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ],
+      "id": "cd848d65-2b43-4666-a1c1-23eb34f5505d",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT \n  (SELECT COUNT(*) FROM alerts) as total_alerts,\n  (SELECT COUNT(*) FROM alerts WHERE ts > NOW() - INTERVAL '24 hours') as alerts_24h,\n  (SELECT COUNT(*) FROM alerts WHERE ts > NOW() - INTERVAL '7 days') as alerts_7d,\n  (SELECT COUNT(*) FROM incidents WHERE status = 'open') as open_incidents,\n  (SELECT COUNT(*) FROM incidents) as total_incidents,\n  (SELECT COALESCE(ROUND(AVG(EXTRACT(EPOCH FROM (p.executed_at - a.ts)))::numeric, 2), 0) FROM alerts a JOIN playbook_runs p ON p.alert_id = a.id) as mttr_seconds,\n  (SELECT COALESCE(ROUND(COUNT(DISTINCT p.alert_id)::numeric / NULLIF((SELECT COUNT(*) FROM alerts), 0) * 100, 2), 0) FROM playbook_runs p) as auto_rate,\n  (SELECT COUNT(*) FROM failed_alerts WHERE resolved = false) as failed_count\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        208,
+        0
+      ],
+      "id": "0f64a551-6475-4356-8f92-740db7993fd5",
+      "name": "Obtener Métricas",
+      "credentials": {
+        "postgres": {
+          "id": "AIctheJOuaGPqoGM",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT src_ip, COUNT(*) as count \nFROM alerts \nWHERE src_ip IS NOT NULL \nGROUP BY src_ip \nORDER BY count DESC \nLIMIT 5\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        416,
+        0
+      ],
+      "id": "78790b84-a3f5-4bb0-af41-acc169c4e4f3",
+      "name": "Top IPs",
+      "credentials": {
+        "postgres": {
+          "id": "AIctheJOuaGPqoGM",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const metrics = $('Obtener Métricas').first().json;\nconst ips = $('Top IPs').all();\n\n// Formatear Top IPs\nlet ipList = '';\nips.forEach((item, i) => {\n  ipList += `  ${i+1}. ${item.json.src_ip} (${item.json.count} alertas)\\n`;\n});\n\nconst mttr = Math.round(metrics.mttr_seconds || 0);\nconst now = new Date().toISOString().substring(0, 16).replace('T', ' ');\n\nconst report = `📊 REPORTE DIARIO SIEM — ${now}\n━━━━━━━━━━━━━━━━━━\n\n📈 RESUMEN\n  Total alertas: ${metrics.total_alerts}\n  Últimas 24h: ${metrics.alerts_24h}\n  Últimos 7 días: ${metrics.alerts_7d}\n\n⏱️ MÉTRICAS KPI\n  MTTR: ${mttr}s\n  Automatización: ${metrics.auto_rate}%\n\n🔒 INCIDENTES\n  Abiertos: ${metrics.open_incidents}\n  Total: ${metrics.total_incidents}\n  Alertas fallidas: ${metrics.failed_count}\n\n🌐 TOP 5 IPs SOSPECHOSAS\n${ipList || '  Sin datos'}\n━━━━━━━━━━━━━━━━━━\n🤖 Reporte automático del SIEM`;\n\nreturn [{ json: { report } }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        624,
+        0
+      ],
+      "id": "7bc34c5d-f917-4567-a291-7bd635e24b60",
+      "name": "Formatear Reporte"
+    },
+    {
+      "parameters": {
+        "chatId": "6196734302",
+        "text": "={{ $json.report }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        896,
+        -80
+      ],
+      "id": "0e983d6a-98ae-476e-a861-a58efdae7537",
+      "name": "Enviar Reporte Telegram",
+      "webhookId": "1148713e-950b-42d4-bfbd-4c685c4b24f0",
+      "credentials": {
+        "telegramApi": {
+          "id": "ESrWgMTKlJIEugIN",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fromEmail": "chicasuperpoderosas26@gmail.com",
+        "toEmail": "chicasuperpoderosas26@gmail.com",
+        "subject": "=📊 Reporte Diario SIEM — {{ new Date().toISOString().substring(0,10) }}",
+        "emailFormat": "text",
+        "text": "={{ $json.report }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        880,
+        128
+      ],
+      "id": "e8eae298-becd-473b-8917-c070d90b78d5",
+      "name": "Email Reporte",
+      "webhookId": "2037b1b5-0386-44e3-8af7-b7615ef09573",
+      "credentials": {
+        "smtp": {
+          "id": "Ty7FivWgzWlJLRel",
+          "name": "SMTP account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Obtener Métricas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Obtener Métricas": {
+      "main": [
+        [
+          {
+            "node": "Top IPs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Top IPs": {
+      "main": [
+        [
+          {
+            "node": "Formatear Reporte",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Formatear Reporte": {
+      "main": [
+        [
+          {
+            "node": "Email Reporte",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Enviar Reporte Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email Reporte": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "versionId": "94922f44-997a-4a9d-bcda-0b2b476430d3",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "09bf4af348858f3d6b0a9389031960280925ad30b5c0fdf0067e1a99f071f3af"
+  },
+  "id": "13gXNRYO4AaFF0NZ",
+  "tags": []
+}
