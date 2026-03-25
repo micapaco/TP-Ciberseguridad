@@ -27,7 +27,8 @@ CREATE TABLE IF NOT EXISTS alerts (
     raw JSONB,
     status VARCHAR(30) DEFAULT 'new',
     acknowledged_at TIMESTAMPTZ,
-    acknowledged_by TEXT
+    acknowledged_by TEXT,
+    country_code VARCHAR(5)
 );
 
 CREATE INDEX IF NOT EXISTS idx_alerts_ts ON alerts(ts DESC);
@@ -131,3 +132,21 @@ CREATE TABLE IF NOT EXISTS failed_alerts (
 
 CREATE INDEX IF NOT EXISTS idx_failed_alerts_ts ON failed_alerts(ts DESC);
 CREATE INDEX IF NOT EXISTS idx_failed_alerts_resolved ON failed_alerts(resolved);
+
+-- Tabla de blacklist de IPs (respuesta automatizada SOAR)
+CREATE TABLE IF NOT EXISTS ip_blacklist (
+    id SERIAL PRIMARY KEY,
+    ip VARCHAR(60) NOT NULL,
+    reason TEXT,
+    incident_id INTEGER REFERENCES incidents(id),
+    blocked_at TIMESTAMP DEFAULT NOW(),
+    expires_at TIMESTAMP,
+    active BOOLEAN DEFAULT true,
+    -- Enforcement: distingue "intención de bloqueo" de "bloqueo aplicado realmente"
+    enforced            BOOLEAN DEFAULT false,
+    enforcement_message TEXT,
+    enforced_at         TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_ip_blacklist_ip ON ip_blacklist(ip);
+CREATE INDEX IF NOT EXISTS idx_ip_blacklist_active ON ip_blacklist(active);

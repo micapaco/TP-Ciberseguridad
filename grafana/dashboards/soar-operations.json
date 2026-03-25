@@ -1,0 +1,209 @@
+{
+  "title": "SOAR / n8n Operations",
+  "uid": "siem-soar-operations",
+  "tags": ["siem", "soar", "n8n"],
+  "timezone": "browser",
+  "refresh": "30s",
+  "schemaVersion": 38,
+  "panels": [
+
+    {
+      "id": 1, "type": "stat", "title": "Playbooks ejecutados (24 h)",
+      "gridPos": { "x": 0, "y": 0, "w": 4, "h": 4 },
+      "datasource": { "type": "postgres", "uid": "siem-postgres" },
+      "options": { "colorMode": "background", "graphMode": "area", "textMode": "auto" },
+      "fieldConfig": { "defaults": {
+        "thresholds": { "mode": "absolute", "steps": [{ "color": "blue", "value": null }] },
+        "mappings": []
+      }, "overrides": [] },
+      "targets": [{ "datasource": { "uid": "siem-postgres" }, "rawSql": "SELECT count(*) AS value FROM playbook_runs WHERE executed_at >= NOW() - INTERVAL '24 hours'", "format": "table", "rawQuery": true, "refId": "A" }]
+    },
+
+    {
+      "id": 2, "type": "stat", "title": "Tasa de éxito (24 h)",
+      "gridPos": { "x": 4, "y": 0, "w": 4, "h": 4 },
+      "datasource": { "type": "postgres", "uid": "siem-postgres" },
+      "options": { "colorMode": "background", "graphMode": "none", "textMode": "auto" },
+      "fieldConfig": { "defaults": {
+        "unit": "percent",
+        "thresholds": { "mode": "absolute", "steps": [
+          { "color": "red", "value": null },
+          { "color": "yellow", "value": 80 },
+          { "color": "green", "value": 95 }
+        ]},
+        "mappings": []
+      }, "overrides": [] },
+      "targets": [{ "datasource": { "uid": "siem-postgres" }, "rawSql": "SELECT ROUND(COUNT(*) FILTER (WHERE outcome = 'success')::numeric / NULLIF(COUNT(*), 0) * 100, 1) AS value FROM playbook_runs WHERE executed_at >= NOW() - INTERVAL '24 hours'", "format": "table", "rawQuery": true, "refId": "A" }]
+    },
+
+    {
+      "id": 3, "type": "stat", "title": "Playbooks fallidos (24 h)",
+      "gridPos": { "x": 8, "y": 0, "w": 4, "h": 4 },
+      "datasource": { "type": "postgres", "uid": "siem-postgres" },
+      "options": { "colorMode": "background", "graphMode": "none", "textMode": "auto" },
+      "fieldConfig": { "defaults": {
+        "thresholds": { "mode": "absolute", "steps": [
+          { "color": "green", "value": null },
+          { "color": "red", "value": 1 }
+        ]},
+        "mappings": []
+      }, "overrides": [] },
+      "targets": [{ "datasource": { "uid": "siem-postgres" }, "rawSql": "SELECT count(*) AS value FROM playbook_runs WHERE outcome != 'success' AND executed_at >= NOW() - INTERVAL '24 hours'", "format": "table", "rawQuery": true, "refId": "A" }]
+    },
+
+    {
+      "id": 4, "type": "stat", "title": "MTTR promedio (histórico, seg)",
+      "gridPos": { "x": 12, "y": 0, "w": 4, "h": 4 },
+      "datasource": { "type": "postgres", "uid": "siem-postgres" },
+      "options": { "colorMode": "background", "graphMode": "none", "textMode": "auto" },
+      "fieldConfig": { "defaults": {
+        "unit": "s",
+        "thresholds": { "mode": "absolute", "steps": [
+          { "color": "green", "value": null },
+          { "color": "yellow", "value": 60 },
+          { "color": "red", "value": 300 }
+        ]},
+        "mappings": []
+      }, "overrides": [] },
+      "targets": [{ "datasource": { "uid": "siem-postgres" }, "rawSql": "SELECT COALESCE(ROUND(AVG(EXTRACT(EPOCH FROM (p.executed_at - a.ts)))::numeric, 1), 0) AS value FROM alerts a JOIN playbook_runs p ON p.alert_id = a.id", "format": "table", "rawQuery": true, "refId": "A" }]
+    },
+
+    {
+      "id": 5, "type": "stat", "title": "Alertas sin playbook asignado",
+      "gridPos": { "x": 16, "y": 0, "w": 4, "h": 4 },
+      "datasource": { "type": "postgres", "uid": "siem-postgres" },
+      "options": { "colorMode": "background", "graphMode": "none", "textMode": "auto" },
+      "fieldConfig": { "defaults": {
+        "thresholds": { "mode": "absolute", "steps": [
+          { "color": "green", "value": null },
+          { "color": "yellow", "value": 1 },
+          { "color": "red", "value": 10 }
+        ]},
+        "mappings": []
+      }, "overrides": [] },
+      "targets": [{ "datasource": { "uid": "siem-postgres" }, "rawSql": "SELECT count(*) AS value FROM alerts a LEFT JOIN playbook_runs p ON p.alert_id = a.id WHERE p.id IS NULL AND a.ts >= NOW() - INTERVAL '24 hours'", "format": "table", "rawQuery": true, "refId": "A" }]
+    },
+
+    {
+      "id": 6, "type": "stat", "title": "Total playbooks histórico",
+      "gridPos": { "x": 20, "y": 0, "w": 4, "h": 4 },
+      "datasource": { "type": "postgres", "uid": "siem-postgres" },
+      "options": { "colorMode": "value", "graphMode": "area", "textMode": "auto" },
+      "fieldConfig": { "defaults": { "thresholds": { "mode": "absolute", "steps": [{ "color": "blue", "value": null }] }, "mappings": [] }, "overrides": [] },
+      "targets": [{ "datasource": { "uid": "siem-postgres" }, "rawSql": "SELECT count(*) AS value FROM playbook_runs", "format": "table", "rawQuery": true, "refId": "A" }]
+    },
+
+    {
+      "id": 7, "type": "timeseries", "title": "Ejecuciones de playbooks en el tiempo",
+      "gridPos": { "x": 0, "y": 4, "w": 16, "h": 8 },
+      "datasource": { "type": "postgres", "uid": "siem-postgres" },
+      "options": { "tooltip": { "mode": "multi" }, "legend": { "displayMode": "list", "placement": "bottom" } },
+      "fieldConfig": { "defaults": {
+        "custom": { "lineWidth": 2, "fillOpacity": 20, "drawStyle": "bars", "gradientMode": "opacity" },
+        "color": { "mode": "palette-classic" },
+        "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] },
+        "mappings": []
+      }, "overrides": [] },
+      "targets": [
+        { "datasource": { "uid": "siem-postgres" }, "rawSql": "SELECT date_trunc('hour', executed_at) AS time, outcome, count(*) AS ejecuciones FROM playbook_runs WHERE $__timeFilter(executed_at) GROUP BY 1, 2 ORDER BY 1", "format": "time_series", "rawQuery": true, "refId": "A" }
+      ]
+    },
+
+    {
+      "id": 8, "type": "piechart", "title": "Resultados de playbooks",
+      "gridPos": { "x": 16, "y": 4, "w": 8, "h": 8 },
+      "datasource": { "type": "postgres", "uid": "siem-postgres" },
+      "options": {
+        "pieType": "donut",
+        "legend": { "displayMode": "list", "placement": "right", "showLegend": true },
+        "reduceOptions": { "calcs": ["sum"], "fields": "/^total$/", "values": true }
+      },
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "palette-classic" }, "mappings": [] },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "success" }, "properties": [{ "id": "color", "value": { "fixedColor": "#2ecc71", "mode": "fixed" } }] },
+          { "matcher": { "id": "byName", "options": "error" },   "properties": [{ "id": "color", "value": { "fixedColor": "#e74c3c", "mode": "fixed" } }] },
+          { "matcher": { "id": "byName", "options": "warning" }, "properties": [{ "id": "color", "value": { "fixedColor": "#e67e22", "mode": "fixed" } }] }
+        ]
+      },
+      "targets": [{ "datasource": { "uid": "siem-postgres" }, "rawSql": "SELECT outcome, count(*) AS total FROM playbook_runs WHERE $__timeFilter(executed_at) GROUP BY outcome", "format": "table", "rawQuery": true, "refId": "A" }]
+    },
+
+    {
+      "id": 9, "type": "table", "title": "Estadísticas por workflow",
+      "gridPos": { "x": 0, "y": 12, "w": 12, "h": 8 },
+      "datasource": { "type": "postgres", "uid": "siem-postgres" },
+      "options": { "showHeader": true, "cellHeight": "sm", "footer": { "show": false } },
+      "fieldConfig": {
+        "defaults": { "custom": { "align": "left" } },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "tasa (%)" }, "properties": [
+            { "id": "unit", "value": "percent" },
+            { "id": "custom.cellOptions", "value": { "type": "color-background", "mode": "basic" } },
+            { "id": "thresholds", "value": { "mode": "absolute", "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 80 },
+              { "color": "green", "value": 95 }
+            ]}}
+          ]},
+          { "matcher": { "id": "byName", "options": "fallidos" }, "properties": [
+            { "id": "custom.cellOptions", "value": { "type": "color-background", "mode": "basic" } },
+            { "id": "thresholds", "value": { "mode": "absolute", "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 1 }
+            ]}}
+          ]}
+        ]
+      },
+      "targets": [{ "datasource": { "uid": "siem-postgres" }, "rawSql": "SELECT workflow, count(*) AS total, count(*) FILTER (WHERE outcome = 'success') AS exitosos, count(*) FILTER (WHERE outcome != 'success') AS fallidos, ROUND(count(*) FILTER (WHERE outcome = 'success')::numeric / NULLIF(count(*), 0) * 100, 1) AS \"tasa (%)\" FROM playbook_runs WHERE $__timeFilter(executed_at) GROUP BY workflow ORDER BY total DESC", "format": "table", "rawQuery": true, "refId": "A" }]
+    },
+
+    {
+      "id": 10, "type": "table", "title": "Últimas ejecuciones de playbooks",
+      "gridPos": { "x": 12, "y": 12, "w": 12, "h": 8 },
+      "datasource": { "type": "postgres", "uid": "siem-postgres" },
+      "options": { "showHeader": true, "cellHeight": "sm", "footer": { "show": false } },
+      "fieldConfig": { "defaults": { "custom": { "align": "left" } }, "overrides": [] },
+      "targets": [{ "datasource": { "uid": "siem-postgres" }, "rawSql": "SELECT TO_CHAR(p.executed_at, 'DD/MM HH24:MI:SS') AS ejecutado, p.workflow, p.outcome AS resultado, ROUND(EXTRACT(EPOCH FROM (p.executed_at - a.ts))::numeric, 1) AS \"latencia (s)\", a.rule_id AS regla, a.src_ip AS ip_origen FROM playbook_runs p JOIN alerts a ON p.alert_id = a.id ORDER BY p.executed_at DESC LIMIT 15", "format": "table", "rawQuery": true, "refId": "A" }]
+    },
+
+    {
+      "id": 11, "type": "stat", "title": "IPs bloqueadas activas (SOAR)",
+      "gridPos": { "x": 0, "y": 20, "w": 4, "h": 4 },
+      "datasource": { "type": "postgres", "uid": "siem-postgres" },
+      "options": { "colorMode": "background", "graphMode": "none", "textMode": "auto" },
+      "fieldConfig": { "defaults": {
+        "thresholds": { "mode": "absolute", "steps": [
+          { "color": "green", "value": null },
+          { "color": "yellow", "value": 1 },
+          { "color": "red", "value": 5 }
+        ]},
+        "mappings": []
+      }, "overrides": [] },
+      "targets": [{ "datasource": { "uid": "siem-postgres" }, "rawSql": "SELECT count(*) AS value FROM ip_blacklist WHERE active = true AND (expires_at IS NULL OR expires_at > NOW())", "format": "table", "rawQuery": true, "refId": "A" }]
+    },
+
+    {
+      "id": 12, "type": "table", "title": "Blacklist de IPs — bloqueos activos (SOAR)",
+      "gridPos": { "x": 4, "y": 20, "w": 20, "h": 8 },
+      "datasource": { "type": "postgres", "uid": "siem-postgres" },
+      "options": { "showHeader": true, "cellHeight": "sm", "footer": { "show": false } },
+      "fieldConfig": {
+        "defaults": { "custom": { "align": "left" } },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "activo" }, "properties": [
+            { "id": "custom.cellOptions", "value": { "type": "color-background", "mode": "basic" } },
+            { "id": "mappings", "value": [
+              { "type": "value", "options": { "true":  { "text": "ACTIVO",   "color": "red",   "index": 0 } } },
+              { "type": "value", "options": { "false": { "text": "expirado", "color": "green", "index": 1 } } }
+            ]}
+          ]}
+        ]
+      },
+      "targets": [{ "datasource": { "uid": "siem-postgres" }, "rawSql": "SELECT ip, reason AS razón, TO_CHAR(blocked_at, 'DD/MM HH24:MI') AS bloqueada, TO_CHAR(expires_at, 'DD/MM HH24:MI') AS vence, active AS activo, i.src_ip AS incidente_ip FROM ip_blacklist b LEFT JOIN incidents i ON b.incident_id = i.id ORDER BY b.blocked_at DESC LIMIT 20", "format": "table", "rawQuery": true, "refId": "A" }]
+    }
+
+  ],
+  "time": { "from": "now-24h", "to": "now" },
+  "timepicker": {}
+}

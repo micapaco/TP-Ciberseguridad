@@ -1,0 +1,206 @@
+{
+  "title": "SIEM Data Pipeline",
+  "uid": "siem-data-pipeline",
+  "tags": ["siem", "pipeline"],
+  "timezone": "browser",
+  "refresh": "30s",
+  "schemaVersion": 38,
+  "panels": [
+
+    {
+      "id": 1, "type": "stat", "title": "Alertas última hora",
+      "gridPos": { "x": 0, "y": 0, "w": 4, "h": 4 },
+      "datasource": { "type": "postgres", "uid": "siem-postgres" },
+      "options": { "colorMode": "background", "graphMode": "area", "textMode": "auto" },
+      "fieldConfig": { "defaults": {
+        "thresholds": { "mode": "absolute", "steps": [
+          { "color": "green", "value": null },
+          { "color": "yellow", "value": 10 },
+          { "color": "red", "value": 50 }
+        ]},
+        "mappings": []
+      }, "overrides": [] },
+      "targets": [{ "datasource": { "uid": "siem-postgres" }, "rawSql": "SELECT count(*) AS value FROM alerts WHERE ts >= NOW() - INTERVAL '1 hour'", "format": "table", "rawQuery": true, "refId": "A" }]
+    },
+
+    {
+      "id": 2, "type": "stat", "title": "Alertas últimas 24 h",
+      "gridPos": { "x": 4, "y": 0, "w": 4, "h": 4 },
+      "datasource": { "type": "postgres", "uid": "siem-postgres" },
+      "options": { "colorMode": "background", "graphMode": "area", "textMode": "auto" },
+      "fieldConfig": { "defaults": {
+        "thresholds": { "mode": "absolute", "steps": [
+          { "color": "green", "value": null },
+          { "color": "yellow", "value": 50 },
+          { "color": "red", "value": 200 }
+        ]},
+        "mappings": []
+      }, "overrides": [] },
+      "targets": [{ "datasource": { "uid": "siem-postgres" }, "rawSql": "SELECT count(*) AS value FROM alerts WHERE ts >= NOW() - INTERVAL '24 hours'", "format": "table", "rawQuery": true, "refId": "A" }]
+    },
+
+    {
+      "id": 3, "type": "stat", "title": "Alertas fallidas sin resolver",
+      "gridPos": { "x": 8, "y": 0, "w": 4, "h": 4 },
+      "datasource": { "type": "postgres", "uid": "siem-postgres" },
+      "options": { "colorMode": "background", "graphMode": "none", "textMode": "auto" },
+      "fieldConfig": { "defaults": {
+        "thresholds": { "mode": "absolute", "steps": [
+          { "color": "green", "value": null },
+          { "color": "red", "value": 1 }
+        ]},
+        "mappings": []
+      }, "overrides": [] },
+      "targets": [{ "datasource": { "uid": "siem-postgres" }, "rawSql": "SELECT count(*) AS value FROM failed_alerts WHERE resolved = false", "format": "table", "rawQuery": true, "refId": "A" }]
+    },
+
+    {
+      "id": 4, "type": "stat", "title": "MTTR últimas 24 h (seg)",
+      "gridPos": { "x": 12, "y": 0, "w": 4, "h": 4 },
+      "datasource": { "type": "postgres", "uid": "siem-postgres" },
+      "options": { "colorMode": "background", "graphMode": "none", "textMode": "auto" },
+      "fieldConfig": { "defaults": {
+        "unit": "s",
+        "thresholds": { "mode": "absolute", "steps": [
+          { "color": "green", "value": null },
+          { "color": "yellow", "value": 60 },
+          { "color": "red", "value": 300 }
+        ]},
+        "mappings": []
+      }, "overrides": [] },
+      "targets": [{ "datasource": { "uid": "siem-postgres" }, "rawSql": "SELECT COALESCE(ROUND(AVG(EXTRACT(EPOCH FROM (p.executed_at - a.ts)))::numeric, 1), 0) AS value FROM alerts a JOIN playbook_runs p ON p.alert_id = a.id WHERE a.ts >= NOW() - INTERVAL '24 hours'", "format": "table", "rawQuery": true, "refId": "A" }]
+    },
+
+    {
+      "id": 5, "type": "stat", "title": "Tasa de automatización (rango activo)",
+      "gridPos": { "x": 16, "y": 0, "w": 4, "h": 4 },
+      "datasource": { "type": "postgres", "uid": "siem-postgres" },
+      "options": { "colorMode": "background", "graphMode": "none", "textMode": "auto" },
+      "fieldConfig": { "defaults": {
+        "unit": "percent",
+        "thresholds": { "mode": "absolute", "steps": [
+          { "color": "red", "value": null },
+          { "color": "yellow", "value": 50 },
+          { "color": "green", "value": 80 }
+        ]},
+        "mappings": []
+      }, "overrides": [] },
+      "targets": [{ "datasource": { "uid": "siem-postgres" }, "rawSql": "SELECT COALESCE(ROUND(COUNT(DISTINCT p.alert_id)::numeric / NULLIF((SELECT COUNT(*) FROM alerts WHERE $__timeFilter(ts)),0) * 100, 1), 0) AS value FROM playbook_runs p WHERE $__timeFilter(p.executed_at)", "format": "table", "rawQuery": true, "refId": "A" }]
+    },
+
+    {
+      "id": 6, "type": "stat", "title": "Incidentes abiertos",
+      "gridPos": { "x": 20, "y": 0, "w": 4, "h": 4 },
+      "datasource": { "type": "postgres", "uid": "siem-postgres" },
+      "options": { "colorMode": "background", "graphMode": "none", "textMode": "auto" },
+      "fieldConfig": { "defaults": {
+        "thresholds": { "mode": "absolute", "steps": [
+          { "color": "green", "value": null },
+          { "color": "yellow", "value": 1 },
+          { "color": "red", "value": 5 }
+        ]},
+        "mappings": []
+      }, "overrides": [] },
+      "targets": [{ "datasource": { "uid": "siem-postgres" }, "rawSql": "SELECT count(*) AS value FROM incidents WHERE status = 'open'", "format": "table", "rawQuery": true, "refId": "A" }]
+    },
+
+    {
+      "id": 7, "type": "timeseries", "title": "Volumen de alertas por hora",
+      "gridPos": { "x": 0, "y": 4, "w": 16, "h": 8 },
+      "datasource": { "type": "postgres", "uid": "siem-postgres" },
+      "options": { "tooltip": { "mode": "multi" }, "legend": { "displayMode": "list", "placement": "bottom" } },
+      "fieldConfig": { "defaults": {
+        "custom": { "lineWidth": 2, "fillOpacity": 20, "drawStyle": "bars", "gradientMode": "opacity" },
+        "color": { "mode": "palette-classic" },
+        "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] },
+        "mappings": []
+      }, "overrides": [] },
+      "targets": [
+        { "datasource": { "uid": "siem-postgres" }, "rawSql": "SELECT date_trunc('hour', ts) AS time, severity, count(*) AS alertas FROM alerts WHERE $__timeFilter(ts) GROUP BY 1, 2 ORDER BY 1", "format": "time_series", "rawQuery": true, "refId": "A" }
+      ]
+    },
+
+    {
+      "id": 8, "type": "piechart", "title": "Distribución por severidad",
+      "gridPos": { "x": 16, "y": 4, "w": 8, "h": 8 },
+      "datasource": { "type": "postgres", "uid": "siem-postgres" },
+      "options": {
+        "pieType": "donut",
+        "legend": { "displayMode": "list", "placement": "right", "showLegend": true },
+        "reduceOptions": { "calcs": ["sum"], "fields": "/^total$/", "values": true }
+      },
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "palette-classic" }, "mappings": [] },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "crítico" },  "properties": [{ "id": "color", "value": { "fixedColor": "#e74c3c", "mode": "fixed" } }] },
+          { "matcher": { "id": "byName", "options": "alto" },     "properties": [{ "id": "color", "value": { "fixedColor": "#e67e22", "mode": "fixed" } }] },
+          { "matcher": { "id": "byName", "options": "medio" },    "properties": [{ "id": "color", "value": { "fixedColor": "#f1c40f", "mode": "fixed" } }] },
+          { "matcher": { "id": "byName", "options": "bajo" },     "properties": [{ "id": "color", "value": { "fixedColor": "#2ecc71", "mode": "fixed" } }] },
+          { "matcher": { "id": "byName", "options": "critical" }, "properties": [{ "id": "color", "value": { "fixedColor": "#e74c3c", "mode": "fixed" } }] },
+          { "matcher": { "id": "byName", "options": "high" },     "properties": [{ "id": "color", "value": { "fixedColor": "#e67e22", "mode": "fixed" } }] },
+          { "matcher": { "id": "byName", "options": "medium" },   "properties": [{ "id": "color", "value": { "fixedColor": "#f1c40f", "mode": "fixed" } }] },
+          { "matcher": { "id": "byName", "options": "low" },      "properties": [{ "id": "color", "value": { "fixedColor": "#2ecc71", "mode": "fixed" } }] }
+        ]
+      },
+      "targets": [{ "datasource": { "uid": "siem-postgres" }, "rawSql": "SELECT severity, count(*) AS total FROM alerts WHERE $__timeFilter(ts) GROUP BY severity ORDER BY total DESC", "format": "table", "rawQuery": true, "refId": "A" }]
+    },
+
+    {
+      "id": 9, "type": "table", "title": "Top reglas disparadas (rango activo)",
+      "gridPos": { "x": 0, "y": 12, "w": 12, "h": 8 },
+      "datasource": { "type": "postgres", "uid": "siem-postgres" },
+      "options": { "showHeader": true, "cellHeight": "sm", "footer": { "show": false } },
+      "fieldConfig": {
+        "defaults": { "custom": { "align": "left" } },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "disparos" }, "properties": [
+            { "id": "custom.cellOptions", "value": { "type": "color-background", "mode": "basic" } },
+            { "id": "thresholds", "value": { "mode": "absolute", "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 10 },
+              { "color": "red", "value": 50 }
+            ]}}
+          ]}
+        ]
+      },
+      "targets": [{ "datasource": { "uid": "siem-postgres" }, "rawSql": "SELECT rule_id AS regla, count(*) AS disparos, count(*) FILTER (WHERE severity = 'critical') AS criticas, count(*) FILTER (WHERE severity = 'high') AS altas FROM alerts WHERE $__timeFilter(ts) GROUP BY rule_id ORDER BY disparos DESC LIMIT 10", "format": "table", "rawQuery": true, "refId": "A" }]
+    },
+
+    {
+      "id": 10, "type": "timeseries", "title": "Tendencia de alertas fallidas",
+      "gridPos": { "x": 12, "y": 12, "w": 12, "h": 8 },
+      "datasource": { "type": "postgres", "uid": "siem-postgres" },
+      "options": { "tooltip": { "mode": "single" }, "legend": { "displayMode": "list", "placement": "bottom" } },
+      "fieldConfig": { "defaults": {
+        "custom": { "lineWidth": 2, "fillOpacity": 30, "drawStyle": "line", "gradientMode": "opacity" },
+        "color": { "fixedColor": "red", "mode": "fixed" },
+        "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] },
+        "mappings": []
+      }, "overrides": [] },
+      "targets": [{ "datasource": { "uid": "siem-postgres" }, "rawSql": "SELECT date_trunc('hour', ts) AS time, count(*) AS \"Alertas fallidas\" FROM failed_alerts WHERE $__timeFilter(ts) GROUP BY 1 ORDER BY 1", "format": "time_series", "rawQuery": true, "refId": "A" }]
+    },
+
+    {
+      "id": 11, "type": "bargauge", "title": "Ataques por país (histórico)",
+      "gridPos": { "x": 0, "y": 20, "w": 12, "h": 8 },
+      "datasource": { "type": "postgres", "uid": "siem-postgres" },
+      "options": {
+        "orientation": "horizontal",
+        "reduceOptions": { "calcs": ["sum"], "fields": "/^ataques$/", "values": true },
+        "displayMode": "gradient"
+      },
+      "fieldConfig": { "defaults": {
+        "thresholds": { "mode": "absolute", "steps": [
+          { "color": "blue", "value": null },
+          { "color": "orange", "value": 10 },
+          { "color": "red", "value": 50 }
+        ]},
+        "mappings": []
+      }, "overrides": [] },
+      "targets": [{ "datasource": { "uid": "siem-postgres" }, "rawSql": "SELECT country_code AS país, count(*) AS ataques FROM alerts WHERE country_code IS NOT NULL AND country_code != '' GROUP BY country_code ORDER BY ataques DESC LIMIT 15", "format": "table", "rawQuery": true, "refId": "A" }]
+    }
+
+  ],
+  "time": { "from": "now-24h", "to": "now" },
+  "timepicker": {}
+}

@@ -85,19 +85,46 @@
             },
             "fieldConfig": {
                 "defaults": {
-                    "color": {
-                        "mode": "palette-classic"
-                    },
+                    "color": { "mode": "palette-classic" },
                     "custom": {
-                        "hideFrom": {
-                            "legend": false,
-                            "tooltip": false,
-                            "viz": false
-                        }
+                        "hideFrom": { "legend": false, "tooltip": false, "viz": false }
                     },
                     "mappings": []
                 },
-                "overrides": []
+                "overrides": [
+                    {
+                        "matcher": { "id": "byName", "options": "crítico" },
+                        "properties": [{ "id": "color", "value": { "fixedColor": "#e74c3c", "mode": "fixed" } }]
+                    },
+                    {
+                        "matcher": { "id": "byName", "options": "alto" },
+                        "properties": [{ "id": "color", "value": { "fixedColor": "#e67e22", "mode": "fixed" } }]
+                    },
+                    {
+                        "matcher": { "id": "byName", "options": "medio" },
+                        "properties": [{ "id": "color", "value": { "fixedColor": "#f1c40f", "mode": "fixed" } }]
+                    },
+                    {
+                        "matcher": { "id": "byName", "options": "bajo" },
+                        "properties": [{ "id": "color", "value": { "fixedColor": "#2ecc71", "mode": "fixed" } }]
+                    },
+                    {
+                        "matcher": { "id": "byName", "options": "critical" },
+                        "properties": [{ "id": "color", "value": { "fixedColor": "#e74c3c", "mode": "fixed" } }]
+                    },
+                    {
+                        "matcher": { "id": "byName", "options": "high" },
+                        "properties": [{ "id": "color", "value": { "fixedColor": "#e67e22", "mode": "fixed" } }]
+                    },
+                    {
+                        "matcher": { "id": "byName", "options": "medium" },
+                        "properties": [{ "id": "color", "value": { "fixedColor": "#f1c40f", "mode": "fixed" } }]
+                    },
+                    {
+                        "matcher": { "id": "byName", "options": "low" },
+                        "properties": [{ "id": "color", "value": { "fixedColor": "#2ecc71", "mode": "fixed" } }]
+                    }
+                ]
             },
             "gridPos": {
                 "h": 8,
@@ -112,13 +139,11 @@
                     "placement": "right",
                     "showLegend": true
                 },
-                "pieType": "pie",
+                "pieType": "donut",
                 "reduceOptions": {
-                    "calcs": [
-                        "lastNotNull"
-                    ],
-                    "fields": "",
-                    "values": false
+                    "calcs": ["sum"],
+                    "fields": "/^count$/",
+                    "values": true
                 },
                 "tooltip": {
                     "mode": "single",
@@ -134,7 +159,7 @@
                     "editorMode": "code",
                     "format": "table",
                     "rawQuery": true,
-                    "rawSql": "SELECT severity, COUNT(*) as count FROM alerts GROUP BY severity",
+                    "rawSql": "SELECT severity, COUNT(*) as count FROM alerts WHERE $__timeFilter(ts) GROUP BY severity ORDER BY count DESC",
                     "refId": "A"
                 }
             ],
@@ -201,6 +226,7 @@
                 "y": 0
             },
             "id": 3,
+            "timeFrom": "7d",
             "options": {
                 "legend": {
                     "calcs": [],
@@ -222,7 +248,7 @@
                     "editorMode": "code",
                     "format": "time_series",
                     "rawQuery": true,
-                    "rawSql": "SELECT date_trunc('hour', ts) as time, COUNT(*) as alertas FROM alerts WHERE ts >= NOW() - INTERVAL '7 days' GROUP BY date_trunc('hour', ts) ORDER BY time",
+                    "rawSql": "SELECT date_trunc('hour', ts) as time, COUNT(*) as alertas FROM alerts WHERE $__timeFilter(ts) GROUP BY date_trunc('hour', ts) ORDER BY time",
                     "refId": "A"
                 }
             ],
@@ -291,11 +317,11 @@
                     "editorMode": "code",
                     "format": "table",
                     "rawQuery": true,
-                    "rawSql": "SELECT * FROM mttr_stats",
+                    "rawSql": "SELECT COALESCE(ROUND(AVG(EXTRACT(EPOCH FROM (p.executed_at - a.ts)))::numeric, 2), 0) AS mttr_segundos FROM alerts a JOIN playbook_runs p ON p.alert_id = a.id",
                     "refId": "A"
                 }
             ],
-            "title": "⏱️ MTTR Promedio",
+            "title": "⏱️ MTTR Promedio (histórico)",
             "type": "stat"
         },
         {
@@ -351,7 +377,7 @@
                     "editorMode": "code",
                     "format": "table",
                     "rawQuery": true,
-                    "rawSql": "SELECT COUNT(*) FROM alerts WHERE severity = 'critical'",
+                    "rawSql": "SELECT COUNT(*) FROM alerts WHERE severity = 'critical' AND $__timeFilter(ts)",
                     "refId": "A"
                 }
             ],
@@ -542,7 +568,7 @@
                     "refId": "A"
                 }
             ],
-            "title": "🕵️ Top IPs Sospechosas",
+            "title": "🕵️ Top IPs Sospechosas (histórico)",
             "type": "table"
         }
     ],

@@ -95,6 +95,23 @@ services:
       - postgres
     restart: unless-stopped
 
+  dashboard:
+    build: ./dashboard
+    container_name: siem_dashboard
+    ports:
+      - "8501:8501"
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=siem
+      - DB_USER=siem
+      - DB_PASSWORD=siem123
+    networks:
+      - siem-net
+    depends_on:
+      - postgres
+    restart: unless-stopped
+
   grafana:
     image: grafana/grafana:latest
     container_name: siem_grafana
@@ -103,6 +120,7 @@ services:
     environment:
       - GF_SECURITY_ADMIN_USER=admin
       - GF_SECURITY_ADMIN_PASSWORD=admin123
+      - GF_DEFAULT_LOCALE=en-US
     volumes:
       - ./grafana:/etc/grafana/provisioning
       - grafana_data:/var/lib/grafana
