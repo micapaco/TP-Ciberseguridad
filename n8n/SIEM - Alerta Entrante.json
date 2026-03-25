@@ -57,8 +57,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        1824,
-        -160
+        2080,
+        -192
       ],
       "id": "a0944443-1fef-472f-88af-c31861523ea7",
       "name": "Registrar Playbook",
@@ -146,8 +146,8 @@
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        2064,
-        -192
+        2320,
+        -224
       ],
       "id": "24aef771-6736-43e8-a358-e246832ad092",
       "name": "Enviar Mensaje",
@@ -172,7 +172,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        1008,
+        1232,
         -176
       ],
       "id": "65156500-d2da-4222-a88a-98814eebc0e6",
@@ -213,8 +213,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        1600,
-        -176
+        1856,
+        -208
       ],
       "id": "8023c4bd-42a4-4deb-a9e6-e7b2725b6b75",
       "name": "Detectar Ataque"
@@ -228,8 +228,8 @@
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        3392,
-        -864
+        3952,
+        -912
       ],
       "id": "dce6a238-0c5b-4c6b-ba87-e30e1f80a3e1",
       "name": "Mensaje especial",
@@ -432,8 +432,8 @@
       "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2.1,
       "position": [
-        3392,
-        -640
+        3952,
+        -688
       ],
       "id": "e9c2fa8b-7948-4b2f-92aa-7f56250e9011",
       "name": "Email de Incidente",
@@ -457,8 +457,8 @@
       "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2.1,
       "position": [
-        2048,
-        16
+        2304,
+        -16
       ],
       "id": "504bb570-9be4-4c44-91ac-cf796ad75c2f",
       "name": "Email Alerta",
@@ -480,8 +480,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1408,
-        -176
+        1664,
+        -208
       ],
       "id": "cb4ae2c5-49b0-4d02-9b21-e1b9e166f829",
       "name": "Calcular Risk Score"
@@ -495,8 +495,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        1216,
-        -176
+        1472,
+        -208
       ],
       "id": "094aa377-3f72-465a-aa7b-6b66480b75d8",
       "name": "Reputación Interna",
@@ -720,8 +720,8 @@
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        3120,
-        -832
+        3664,
+        -848
       ],
       "id": "6b332652-b9cb-48fe-8c5d-8c2648a8c14a",
       "name": "Notificar Bloqueo",
@@ -732,9 +732,81 @@
           "name": "Telegram account"
         }
       }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE alerts \nSET country_code = NULLIF($1, '')\nWHERE id = $2\n",
+        "options": {
+          "queryReplacement": "=={{$('Consultar AbuseIPDB').item.json.data.countryCode}}, {{$('Insertar Alerta').item.json.id}}\n\n\n\n\n"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1024,
+        -176
+      ],
+      "id": "75f76094-7e99-4bb8-a26c-2c43e3dcc5e8",
+      "name": "Guardar País",
+      "credentials": {
+        "postgres": {
+          "id": "AIctheJOuaGPqoGM",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:8765/block",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-siem-key",
+              "value": "superpoderosas26"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"ip\": \"{{ $('Enriquecer Datos').item.json.body.src_ip }}\",\n  \"reason\": \"SOAR auto-block incidente #{{ $('Crear Incidente').item.json.id }}\"\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        3120,
+        -832
+      ],
+      "id": "1e18b618-a992-4330-ae5a-323e2e55f978",
+      "name": "Enforce Block",
+      "retryOnFail": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE ip_blacklist \nSET enforced = {{ $json.success }},\n    enforcement_message = '{{ $json.message }}',\n    enforced_at = NOW()\nWHERE ip = '{{ $json.ip }}' \n  AND active = true;\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3312,
+        -832
+      ],
+      "id": "d0b8c207-4347-45d0-bf7a-be5ac30cfeba",
+      "name": "Actualizar Enforcement",
+      "credentials": {
+        "postgres": {
+          "id": "AIctheJOuaGPqoGM",
+          "name": "Postgres account"
+        }
+      }
     }
   ],
-  "pinData": {},
   "connections": {
     "Webhook": {
       "main": [
@@ -890,7 +962,7 @@
       "main": [
         [
           {
-            "node": "Contar Alertas",
+            "node": "Guardar País",
             "type": "main",
             "index": 0
           }
@@ -979,7 +1051,7 @@
       "main": [
         [
           {
-            "node": "Notificar Bloqueo",
+            "node": "Enforce Block",
             "type": "main",
             "index": 0
           }
@@ -1001,9 +1073,41 @@
           }
         ]
       ]
+    },
+    "Guardar País": {
+      "main": [
+        [
+          {
+            "node": "Contar Alertas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enforce Block": {
+      "main": [
+        [
+          {
+            "node": "Actualizar Enforcement",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Actualizar Enforcement": {
+      "main": [
+        [
+          {
+            "node": "Notificar Bloqueo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
-  "active": true,
   "settings": {
     "executionOrder": "v1",
     "availableInMCP": false,
@@ -1011,11 +1115,5 @@
     "callerPolicy": "workflowsFromSameOwner",
     "errorWorkflow": "bGaeMTNdqbMcxXsF"
   },
-  "versionId": "2e93548a-5eb8-441c-b664-43ad1ecedf93",
-  "meta": {
-    "templateCredsSetupCompleted": true,
-    "instanceId": "09bf4af348858f3d6b0a9389031960280925ad30b5c0fdf0067e1a99f071f3af"
-  },
-  "id": "6XEgeTOIEL6tEFXZ",
-  "tags": []
+  "staticData": null
 }
