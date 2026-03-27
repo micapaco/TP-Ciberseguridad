@@ -228,8 +228,8 @@
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        3952,
-        -912
+        3888,
+        -944
       ],
       "id": "dce6a238-0c5b-4c6b-ba87-e30e1f80a3e1",
       "name": "Mensaje especial",
@@ -432,8 +432,8 @@
       "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2.1,
       "position": [
-        3952,
-        -688
+        3888,
+        -720
       ],
       "id": "e9c2fa8b-7948-4b2f-92aa-7f56250e9011",
       "name": "Email de Incidente",
@@ -577,6 +577,29 @@
                 ],
                 "combinator": "and"
               }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "a23679e5-0fe5-4885-9a03-73b71bc56409",
+                    "leftValue": "={{$json.severity}}",
+                    "rightValue": "low",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
             }
           ]
         },
@@ -656,8 +679,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        960,
-        -624
+        1152,
+        -576
       ],
       "id": "4bc810d5-b857-49b3-96e8-010f3501fcae",
       "name": "Crear Incidente Spraying",
@@ -677,8 +700,8 @@
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        1168,
-        -624
+        1360,
+        -576
       ],
       "id": "59405915-5217-4dde-94d4-680a44f06198",
       "name": "Alerta Spraying",
@@ -720,8 +743,8 @@
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        3664,
-        -848
+        3584,
+        -832
       ],
       "id": "6b332652-b9cb-48fe-8c5d-8c2648a8c14a",
       "name": "Notificar Bloqueo",
@@ -794,7 +817,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        3312,
+        3344,
         -832
       ],
       "id": "d0b8c207-4347-45d0-bf7a-be5ac30cfeba",
@@ -805,8 +828,72 @@
           "name": "Postgres account"
         }
       }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO playbook_runs(alert_id, workflow, outcome)\nVALUES({{ $('Insertar Alerta').item.json.id }}, 'SIEM-Alert', 'blocked')",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        4224,
+        -832
+      ],
+      "id": "db4e49e6-71e6-457b-9274-3db0e1f164d5",
+      "name": "Registrar Playbook1",
+      "credentials": {
+        "postgres": {
+          "id": "AIctheJOuaGPqoGM",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO playbook_runs(alert_id, workflow, outcome)\nVALUES({{ $('Insertar Alerta').item.json.id }}, 'SIEM-Alert', 'incident_created')",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1568,
+        -576
+      ],
+      "id": "2db4c758-286c-42ac-ba63-cf879ae03ff3",
+      "name": "Registrar Playbook2",
+      "credentials": {
+        "postgres": {
+          "id": "AIctheJOuaGPqoGM",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH ins AS (\n  INSERT INTO alerts(rule_id, src_ip, username, severity, raw)\n  VALUES (\n    '{{ $json.body.rule_id }}',\n    '{{ $json.body.src_ip }}',\n    '{{ $json.body.username }}',\n    '{{ $json.body.severity }}',\n    '{{ JSON.stringify($json.body || {}) }}'::jsonb\n  )\n  RETURNING id\n)\nINSERT INTO playbook_runs(alert_id, workflow, outcome)\nSELECT id, 'SIEM-Alert-Low', 'logged_low' FROM ins;\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -240,
+        272
+      ],
+      "id": "6ba1b985-721b-482e-ab4f-560e41dd5498",
+      "name": "Registrar Playbook Low",
+      "credentials": {
+        "postgres": {
+          "id": "AIctheJOuaGPqoGM",
+          "name": "Postgres account"
+        }
+      }
     }
   ],
+  "pinData": {},
   "connections": {
     "Webhook": {
       "main": [
@@ -1011,6 +1098,13 @@
             "type": "main",
             "index": 0
           }
+        ],
+        [
+          {
+            "node": "Registrar Playbook Low",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
@@ -1106,8 +1200,42 @@
           }
         ]
       ]
+    },
+    "Email de Incidente": {
+      "main": [
+        [
+          {
+            "node": "Registrar Playbook1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mensaje especial": {
+      "main": [
+        [
+          {
+            "node": "Registrar Playbook1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Alerta Spraying": {
+      "main": [
+        [
+          {
+            "node": "Registrar Playbook2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
+  "active": true,
   "settings": {
     "executionOrder": "v1",
     "availableInMCP": false,
@@ -1115,5 +1243,11 @@
     "callerPolicy": "workflowsFromSameOwner",
     "errorWorkflow": "bGaeMTNdqbMcxXsF"
   },
-  "staticData": null
+  "versionId": "02ecd904-6f76-4449-9778-3b95caa7b261",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "09bf4af348858f3d6b0a9389031960280925ad30b5c0fdf0067e1a99f071f3af"
+  },
+  "id": "6XEgeTOIEL6tEFXZ",
+  "tags": []
 }
