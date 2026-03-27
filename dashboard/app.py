@@ -194,11 +194,7 @@ def get_kpis():
               EXTRACT(EPOCH FROM (p.executed_at - a.ts))
            )::numeric, 1), 0)
            FROM alerts a JOIN playbook_runs p ON p.alert_id = a.id)               AS mttr_sec,
-          (SELECT COALESCE(ROUND(
-              COUNT(DISTINCT p.alert_id)::numeric
-              / NULLIF((SELECT COUNT(*) FROM alerts),0) * 100, 1
-           ), 0)
-           FROM playbook_runs p)                                                   AS auto_pct,
+          (SELECT COALESCE(automation_percentage, 0) FROM automation_rate_operational) AS auto_pct,
           (SELECT COUNT(*) FROM failed_alerts WHERE resolved = false)              AS failed,
           (SELECT COUNT(*) FROM ip_blacklist WHERE active = true AND (expires_at IS NULL OR expires_at > NOW())) AS ips_bloqueadas
     """)
@@ -397,7 +393,7 @@ if not kpis_df.empty:
     with col5:
         auto = float(k["auto_pct"])
         css = "kpi-ok" if auto >= 80 else ("kpi-warning" if auto >= 50 else "kpi-critical")
-        kpi_card("Tasa autom. histórica", f"{auto:.1f}%", css)
+        kpi_card("Tasa autom. histórica (op.)", f"{auto:.1f}%", css)
     with col6:
         css = "kpi-critical" if k["failed"] > 0 else "kpi-ok"
         kpi_card("Alertas fallidas", int(k["failed"]), css)

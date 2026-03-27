@@ -35,7 +35,7 @@ Abrir en el navegador:
 
 | Servicio | URL | Credenciales |
 |----------|-----|-------------|
-| **Grafana** | `http://localhost:3000` | `admin / admin` |
+| **Grafana** | `http://localhost:3000` | `admin / admin123` |
 | **Kibana** | `http://localhost:5601` | Sin login |
 | **n8n** | `http://localhost:5678` | Sin login |
 | **Dashboard (Streamlit)** | `http://localhost:8501` | Sin login |

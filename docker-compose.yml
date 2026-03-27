@@ -131,38 +131,6 @@ services:
       - elasticsearch
     restart: unless-stopped
 
-  wazuh-manager:
-    image: wazuh/wazuh-manager:4.7.0
-    container_name: siem_wazuh_manager
-    hostname: wazuh-manager
-    restart: unless-stopped
-    ports:
-      - "1514:1514"
-      - "1515:1515"
-      - "55000:55000"
-    environment:
-      - INDEXER_URL=http://elasticsearch:9200
-      - INDEXER_USERNAME=admin
-      - INDEXER_PASSWORD=admin
-      - FILEBEAT_SSL_VERIFICATION_MODE=none
-    volumes:
-      - wazuh_api_configuration:/var/ossec/api/configuration
-      - wazuh_etc:/var/ossec/etc
-      - wazuh_logs:/var/ossec/logs
-      - wazuh_queue:/var/ossec/queue
-      - wazuh_var_multigroups:/var/ossec/var/multigroups
-      - wazuh_integrations:/var/ossec/integrations
-      - wazuh_active_response:/var/ossec/active-response/bin
-      - wazuh_agentless:/var/ossec/agentless
-      - wazuh_wodles:/var/ossec/wodles
-    networks:
-      - siem-net
-  # NOTA: wazuh-dashboard fue removido porque requiere OpenSearch como backend,
-  # pero este stack utiliza Elasticsearch, lo cual los hace incompatibles.
-  # La detección FIM sigue funcionando a través de wazuh-manager + el script
-  # detector/wazuh_fim_to_n8n.py que envía las alertas directamente a n8n.
-  # La visualización se realiza en Grafana, que sí es compatible con ambos backends.
-
 networks:
   siem-net:
     driver: bridge
@@ -172,12 +140,3 @@ volumes:
   elasticsearch_data:
   n8n_data:
   grafana_data:
-  wazuh_api_configuration:
-  wazuh_etc:
-  wazuh_logs:
-  wazuh_queue:
-  wazuh_var_multigroups:
-  wazuh_integrations:
-  wazuh_active_response:
-  wazuh_agentless:
-  wazuh_wodles:

@@ -599,6 +599,115 @@ def full_auto_simulation(stats=None):
 
 
 # ============================================
+# PRUEBA DE RAMAS DEL WORKFLOW
+# ============================================
+
+RAMA_TEST_IP = "77.77.77.77"
+
+
+def rama1_alerta_high(stats=None):
+    """Rama 1: alerta HIGH — notificacion Telegram sin crear incidente."""
+    print(f"\n{C.BOLD}{C.YELLOW}[RAMA 1] Alerta HIGH — solo notificacion{C.RESET}")
+    print(f"{C.GRAY}Espera: Telegram con alerta HIGH, sin incidente nuevo{C.RESET}")
+    print(f"{C.GRAY}{'-' * 65}{C.RESET}")
+    payload = build_payload(
+        "FILE_INTEGRITY", "10.10.10.1", "admin", "high",
+        "Archivo critico modificado — test rama 1",
+        attempt_count=1,
+    )
+    return send_alert(payload, stats=stats)
+
+
+def rama2_alerta_descartada(stats=None):
+    """Rama 2: alerta MEDIUM — debe ser descartada por el filtro de severidad."""
+    print(f"\n{C.BOLD}{C.BLUE}[RAMA 2] Alerta MEDIUM — descartada por filtro{C.RESET}")
+    print(f"{C.GRAY}Espera: webhook responde 200 pero NO llega nada a Telegram{C.RESET}")
+    print(f"{C.GRAY}{'-' * 65}{C.RESET}")
+    payload = build_payload(
+        "SQL_INJECTION", "10.10.10.2", "user", "medium",
+        "SQL injection detectado — test rama 2",
+        attempt_count=1,
+    )
+    ok = send_alert(payload, stats=stats)
+    if ok:
+        print(f"  {C.YELLOW}-> Verificar que NO llegue notificacion a Telegram{C.RESET}")
+    return ok
+
+
+def rama3_nuevo_incidente(stats=None):
+    """Rama 3: 6 alertas CRITICAL del mismo IP — crea incidente + enforce block."""
+    print(f"\n{C.BOLD}{C.RED}[RAMA 3] Nuevo incidente + Enforce Block{C.RESET}")
+    print(f"{C.GRAY}IP de prueba: {RAMA_TEST_IP} (6 alertas criticas){C.RESET}")
+    print(f"{C.GRAY}Espera: incidente creado, IP bloqueada, notificacion de bloqueo{C.RESET}")
+    print(f"{C.GRAY}{'-' * 65}{C.RESET}")
+    all_ok = True
+    for attempt in range(1, 7):
+        payload = build_payload(
+            "SSH_BRUTE_FORCE", RAMA_TEST_IP, "root", "critical",
+            f"Failed password for root from {RAMA_TEST_IP} port 22 ssh2",
+            attempt_count=attempt,
+        )
+        if not send_alert(payload, stats=stats):
+            all_ok = False
+        time.sleep(1)
+    print(f"\n{C.GREEN}6 alertas enviadas — revisar Telegram e ip_blacklist{C.RESET}")
+    return all_ok
+
+
+def rama4_reincidencia(stats=None):
+    """Rama 4: alerta del mismo IP con incidente ya abierto — alerta de reincidencia."""
+    print(f"\n{C.BOLD}{C.YELLOW}[RAMA 4] IP Reincidente{C.RESET}")
+    print(f"{C.GRAY}IP de prueba: {RAMA_TEST_IP} (debe tener incidente abierto de Rama 3){C.RESET}")
+    print(f"{C.GRAY}Espera: alerta de reincidencia en Telegram, sin crear nuevo incidente{C.RESET}")
+    print(f"{C.GRAY}{'-' * 65}{C.RESET}")
+    payload = build_payload(
+        "SSH_BRUTE_FORCE", RAMA_TEST_IP, "root", "critical",
+        f"Reincidencia detectada desde {RAMA_TEST_IP}",
+        attempt_count=9,
+    )
+    return send_alert(payload, stats=stats)
+
+
+def rama5_password_spraying_workflow(stats=None):
+    """Rama 5: 6 IPs distintas atacando el mismo usuario — detecta password spraying."""
+    user = "admin"
+    ips = [f"20.20.20.{i}" for i in range(1, 7)]
+    print(f"\n{C.BOLD}{C.RED}[RAMA 5] Password Spraying{C.RESET}")
+    print(f"{C.GRAY}6 IPs distintas -> usuario: {user}{C.RESET}")
+    print(f"{C.GRAY}Espera: alertas individuales + mensaje PASSWORD SPRAYING DETECTADO{C.RESET}")
+    print(f"{C.GRAY}{'-' * 65}{C.RESET}")
+    all_ok = True
+    for ip in ips:
+        payload = build_payload(
+            "password_spraying", ip, user, "critical",
+            f"Failed password for {user} from {ip} — spraying test",
+            attempt_count=2,
+        )
+        if not send_alert(payload, stats=stats):
+            all_ok = False
+        time.sleep(1)
+    print(f"\n{C.GREEN}Password spraying completado — revisar Telegram{C.RESET}")
+    return all_ok
+
+
+def rama3_limpiar():
+    """Limpia los datos de prueba de la Rama 3 en la DB."""
+    import subprocess
+    cmd = (
+        "docker exec siem_postgres psql -U siem -d siem -c \""
+        "DELETE FROM playbook_runs WHERE alert_id IN (SELECT id FROM alerts WHERE src_ip='77.77.77.77');"
+        "DELETE FROM ip_blacklist WHERE ip='77.77.77.77';"
+        "DELETE FROM alerts WHERE src_ip='77.77.77.77';"
+        "DELETE FROM incidents WHERE src_ip='77.77.77.77';\""
+    )
+    result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+    if result.returncode == 0:
+        print(f"  {C.GREEN}DB limpiada para IP {RAMA_TEST_IP}{C.RESET}")
+    else:
+        print(f"  {C.RED}Error limpiando DB: {result.stderr}{C.RESET}")
+
+
+# ============================================
 # MENU INTERACTIVO
 # ============================================
 
@@ -618,11 +727,17 @@ def interactive_menu(stats):
         print(f"  {C.YELLOW}8.{C.RESET} Login sospechoso")
         print(f"  {C.CYAN}9.{C.RESET} Ataques mixtos aleatorios")
         print(f"  {C.GREEN}10.{C.RESET} Simulacion COMPLETA automatica")
-        print(f"  {C.RED}11.{C.RESET} Password Spraying (6 IPs -> 1 usuario)")
-        print(f"  {C.GRAY}0.  Salir{C.RESET}")
+        print(f"\n{C.BOLD}  --- PROBAR RAMAS DEL WORKFLOW ---{C.RESET}")
+        print(f"  {C.YELLOW}R1.{C.RESET} Rama 1 — Alerta HIGH (notificacion sin incidente)")
+        print(f"  {C.BLUE}R2.{C.RESET} Rama 2 — Alerta MEDIUM (descartada por filtro)")
+        print(f"  {C.RED}R3.{C.RESET} Rama 3 — Nuevo incidente + Enforce Block")
+        print(f"  {C.YELLOW}R4.{C.RESET} Rama 4 — IP Reincidente (requiere correr R3 antes)")
+        print(f"  {C.MAGENTA}R5.{C.RESET} Rama 5 — Password Spraying (6 IPs -> admin)")
+        print(f"  {C.GRAY}RC.  Limpiar DB de pruebas (IP {RAMA_TEST_IP}){C.RESET}")
+        print(f"  {C.GRAY}0.   Salir{C.RESET}")
         print(f"{C.BOLD}{'=' * 55}{C.RESET}")
 
-        choice = input(f"\n  {C.BOLD}Elige una opcion:{C.RESET} ").strip()
+        choice = input(f"\n  {C.BOLD}Elige una opcion:{C.RESET} ").strip().lower()
 
         if choice == "1":
             ssh_bruteforce(stats=stats)
@@ -645,8 +760,18 @@ def interactive_menu(stats):
             mixed_attacks(count=int(amount) if amount else 10, stats=stats)
         elif choice == "10":
             full_auto_simulation(stats=stats)
-        elif choice == "11":
-            password_spraying(stats=stats)
+        elif choice == "r1":
+            rama1_alerta_high(stats=stats)
+        elif choice == "r2":
+            rama2_alerta_descartada(stats=stats)
+        elif choice == "r3":
+            rama3_nuevo_incidente(stats=stats)
+        elif choice == "r4":
+            rama4_reincidencia(stats=stats)
+        elif choice == "r5":
+            rama5_password_spraying_workflow(stats=stats)
+        elif choice == "rc":
+            rama3_limpiar()
         elif choice == "0":
             print(f"\n  {C.GREEN}Chau{C.RESET}")
             break

@@ -79,13 +79,60 @@ FROM alerts
 GROUP BY DATE(ts), severity
 ORDER BY alert_date DESC, severity;
 
--- Vista para tasa de automatización
+-- Vista para tasa de automatización (cobertura + éxito separados)
 CREATE OR REPLACE VIEW automation_rate AS
-SELECT 
-    COUNT(DISTINCT p.alert_id) AS automated_alerts,
-    (SELECT COUNT(*) FROM alerts) AS total_alerts,
-    ROUND(COUNT(DISTINCT p.alert_id)::numeric / NULLIF((SELECT COUNT(*) FROM alerts), 0) * 100, 2) AS automation_percentage
+SELECT
+    -- Cobertura: alertas con al menos un playbook registrado / total alertas
+    COUNT(DISTINCT p.alert_id)                                                        AS automated_alerts,
+    (SELECT COUNT(*) FROM alerts)                                                     AS total_alerts,
+    ROUND(COUNT(DISTINCT p.alert_id)::numeric
+          / NULLIF((SELECT COUNT(*) FROM alerts), 0) * 100, 2)                       AS automation_percentage,
+
+    -- Éxito: playbooks con outcome exitoso / total playbooks registrados
+    COUNT(*) FILTER (WHERE p.outcome IN (
+        'success', 'incident_created', 'incident_reused', 'blocked', 'partial_success', 'logged_low'
+    ))                                                                                AS successful_runs,
+    COUNT(*)                                                                          AS total_runs,
+    ROUND(COUNT(*) FILTER (WHERE p.outcome IN (
+        'success', 'incident_created', 'incident_reused', 'blocked', 'partial_success', 'logged_low'
+    ))::numeric / NULLIF(COUNT(*), 0) * 100, 2)                                      AS success_rate,
+
+    -- Distribución de outcomes
+    COUNT(*) FILTER (WHERE p.outcome = 'success')           AS outcome_success,
+    COUNT(*) FILTER (WHERE p.outcome = 'incident_created')  AS outcome_incident_created,
+    COUNT(*) FILTER (WHERE p.outcome = 'incident_reused')   AS outcome_incident_reused,
+    COUNT(*) FILTER (WHERE p.outcome = 'blocked')           AS outcome_blocked,
+    COUNT(*) FILTER (WHERE p.outcome = 'partial_success')   AS outcome_partial,
+    COUNT(*) FILTER (WHERE p.outcome = 'logged_low')        AS outcome_logged_low,
+    COUNT(*) FILTER (WHERE p.outcome = 'failed')            AS outcome_failed
 FROM playbook_runs p;
+
+-- Vista de automatización OPERATIVA (excluye alertas de prueba/construcción)
+-- Las alertas de test no deben sesgar los KPI operativos del SOC
+CREATE OR REPLACE VIEW automation_rate_operational AS
+SELECT
+    COUNT(DISTINCT p.alert_id)                                                        AS automated_alerts,
+    COUNT(DISTINCT a.id)                                                              AS total_alerts,
+    ROUND(COUNT(DISTINCT p.alert_id)::numeric
+          / NULLIF(COUNT(DISTINCT a.id), 0) * 100, 2)                                AS automation_percentage,
+    COUNT(*) FILTER (WHERE p.outcome IN (
+        'success', 'incident_created', 'incident_reused', 'blocked', 'partial_success', 'logged_low'
+    ))                                                                                AS successful_runs,
+    COUNT(p.id)                                                                       AS total_runs,
+    ROUND(COUNT(*) FILTER (WHERE p.outcome IN (
+        'success', 'incident_created', 'incident_reused', 'blocked', 'partial_success', 'logged_low'
+    ))::numeric / NULLIF(COUNT(p.id), 0) * 100, 2)                                   AS success_rate,
+    COUNT(*) FILTER (WHERE p.outcome = 'success')           AS outcome_success,
+    COUNT(*) FILTER (WHERE p.outcome = 'incident_created')  AS outcome_incident_created,
+    COUNT(*) FILTER (WHERE p.outcome = 'incident_reused')   AS outcome_incident_reused,
+    COUNT(*) FILTER (WHERE p.outcome = 'blocked')           AS outcome_blocked,
+    COUNT(*) FILTER (WHERE p.outcome = 'partial_success')   AS outcome_partial,
+    COUNT(*) FILTER (WHERE p.outcome = 'logged_low')        AS outcome_logged_low,
+    COUNT(*) FILTER (WHERE p.outcome = 'failed')            AS outcome_failed
+FROM alerts a
+LEFT JOIN playbook_runs p ON p.alert_id = a.id
+WHERE a.rule_id NOT IN ('test_fix', 'test_playbook', 'test_mejorado', 'test_telegram')
+  AND a.rule_id NOT LIKE 'test%';
 
 -- Vista para top IPs sospechosas
 CREATE OR REPLACE VIEW top_suspicious_ips AS
