@@ -33,7 +33,7 @@
         ]},
         "mappings": []
       }, "overrides": [] },
-      "targets": [{ "datasource": { "uid": "siem-postgres" }, "rawSql": "SELECT ROUND(COUNT(*) FILTER (WHERE outcome = 'success')::numeric / NULLIF(COUNT(*), 0) * 100, 1) AS value FROM playbook_runs WHERE executed_at >= NOW() - INTERVAL '24 hours'", "format": "table", "rawQuery": true, "refId": "A" }]
+      "targets": [{ "datasource": { "uid": "siem-postgres" }, "rawSql": "SELECT ROUND(COUNT(*) FILTER (WHERE outcome IN ('success','blocked','incident_created','logged_low'))::numeric / NULLIF(COUNT(*), 0) * 100, 1) AS value FROM playbook_runs WHERE executed_at >= NOW() - INTERVAL '24 hours'", "format": "table", "rawQuery": true, "refId": "A" }]
     },
 
     {
@@ -48,7 +48,7 @@
         ]},
         "mappings": []
       }, "overrides": [] },
-      "targets": [{ "datasource": { "uid": "siem-postgres" }, "rawSql": "SELECT count(*) AS value FROM playbook_runs WHERE outcome != 'success' AND executed_at >= NOW() - INTERVAL '24 hours'", "format": "table", "rawQuery": true, "refId": "A" }]
+      "targets": [{ "datasource": { "uid": "siem-postgres" }, "rawSql": "SELECT count(*) AS value FROM playbook_runs WHERE outcome NOT IN ('success','blocked','incident_created','logged_low') AND executed_at >= NOW() - INTERVAL '24 hours'", "format": "table", "rawQuery": true, "refId": "A" }]
     },
 
     {
@@ -155,7 +155,7 @@
           ]}
         ]
       },
-      "targets": [{ "datasource": { "uid": "siem-postgres" }, "rawSql": "SELECT workflow, count(*) AS total, count(*) FILTER (WHERE outcome = 'success') AS exitosos, count(*) FILTER (WHERE outcome != 'success') AS fallidos, ROUND(count(*) FILTER (WHERE outcome = 'success')::numeric / NULLIF(count(*), 0) * 100, 1) AS \"tasa (%)\" FROM playbook_runs WHERE $__timeFilter(executed_at) GROUP BY workflow ORDER BY total DESC", "format": "table", "rawQuery": true, "refId": "A" }]
+      "targets": [{ "datasource": { "uid": "siem-postgres" }, "rawSql": "SELECT workflow, count(*) AS total, count(*) FILTER (WHERE outcome IN ('success','blocked','incident_created','logged_low')) AS exitosos, count(*) FILTER (WHERE outcome NOT IN ('success','blocked','incident_created','logged_low')) AS fallidos, ROUND(count(*) FILTER (WHERE outcome IN ('success','blocked','incident_created','logged_low'))::numeric / NULLIF(count(*), 0) * 100, 1) AS \"tasa (%)\" FROM playbook_runs WHERE $__timeFilter(executed_at) GROUP BY workflow ORDER BY total DESC", "format": "table", "rawQuery": true, "refId": "A" }]
     },
 
     {

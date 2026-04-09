@@ -874,7 +874,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "WITH ins AS (\n  INSERT INTO alerts(rule_id, src_ip, username, severity, raw)\n  VALUES (\n    '{{ $json.body.rule_id }}',\n    '{{ $json.body.src_ip }}',\n    '{{ $json.body.username }}',\n    '{{ $json.body.severity }}',\n    '{{ JSON.stringify($json.body || {}) }}'::jsonb\n  )\n  RETURNING id\n)\nINSERT INTO playbook_runs(alert_id, workflow, outcome)\nSELECT id, 'SIEM-Alert-Low', 'logged_low' FROM ins;\n",
+        "query": "WITH ins AS (\n  INSERT INTO alerts(rule_id, src_ip, username, severity, raw)\n  VALUES (\n    '{{ $json.rule_id }}',\n    '{{ $json.src_ip }}',\n    '{{ $json.username }}',\n    '{{ $json.severity }}',\n    '{{ $json.raw_body }}'::jsonb\n  )\n  RETURNING id\n)\nINSERT INTO playbook_runs(alert_id, workflow, outcome)\nSELECT id, 'SIEM-Alert-Low', 'logged_low' FROM ins;\n",
         "options": {}
       },
       "type": "n8n-nodes-base.postgres",

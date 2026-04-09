@@ -602,7 +602,7 @@ def full_auto_simulation(stats=None):
 # PRUEBA DE RAMAS DEL WORKFLOW
 # ============================================
 
-RAMA_TEST_IP = "77.77.77.77"
+RAMA_TEST_IP = "45.33.32.156"
 
 
 def rama1_alerta_high(stats=None):
@@ -611,7 +611,7 @@ def rama1_alerta_high(stats=None):
     print(f"{C.GRAY}Espera: Telegram con alerta HIGH, sin incidente nuevo{C.RESET}")
     print(f"{C.GRAY}{'-' * 65}{C.RESET}")
     payload = build_payload(
-        "FILE_INTEGRITY", "10.10.10.1", "admin", "high",
+        "FILE_INTEGRITY", "91.189.114.8", "admin", "high",
         "Archivo critico modificado — test rama 1",
         attempt_count=1,
     )
@@ -619,12 +619,12 @@ def rama1_alerta_high(stats=None):
 
 
 def rama2_alerta_descartada(stats=None):
-    """Rama 2: alerta MEDIUM — debe ser descartada por el filtro de severidad."""
-    print(f"\n{C.BOLD}{C.BLUE}[RAMA 2] Alerta MEDIUM — descartada por filtro{C.RESET}")
-    print(f"{C.GRAY}Espera: webhook responde 200 pero NO llega nada a Telegram{C.RESET}")
+    """Rama 2: alerta LOW — se registra en DB pero no genera notificación."""
+    print(f"\n{C.BOLD}{C.BLUE}[RAMA 2] Alerta LOW — registrada sin notificacion{C.RESET}")
+    print(f"{C.GRAY}Espera: webhook responde 200, se guarda en DB pero NO llega nada a Telegram{C.RESET}")
     print(f"{C.GRAY}{'-' * 65}{C.RESET}")
     payload = build_payload(
-        "SQL_INJECTION", "10.10.10.2", "user", "medium",
+        "SQL_INJECTION", "10.10.10.2", "user", "low",
         "SQL injection detectado — test rama 2",
         attempt_count=1,
     )
@@ -671,7 +671,7 @@ def rama4_reincidencia(stats=None):
 def rama5_password_spraying_workflow(stats=None):
     """Rama 5: 6 IPs distintas atacando el mismo usuario — detecta password spraying."""
     user = "admin"
-    ips = [f"20.20.20.{i}" for i in range(1, 7)]
+    ips = ["203.0.113.50", "198.51.100.23", "185.220.101.42", "91.240.118.172", "178.128.95.10", "45.33.32.156"]
     print(f"\n{C.BOLD}{C.RED}[RAMA 5] Password Spraying{C.RESET}")
     print(f"{C.GRAY}6 IPs distintas -> usuario: {user}{C.RESET}")
     print(f"{C.GRAY}Espera: alertas individuales + mensaje PASSWORD SPRAYING DETECTADO{C.RESET}")
@@ -695,10 +695,10 @@ def rama3_limpiar():
     import subprocess
     cmd = (
         "docker exec siem_postgres psql -U siem -d siem -c \""
-        "DELETE FROM playbook_runs WHERE alert_id IN (SELECT id FROM alerts WHERE src_ip='77.77.77.77');"
-        "DELETE FROM ip_blacklist WHERE ip='77.77.77.77';"
-        "DELETE FROM alerts WHERE src_ip='77.77.77.77';"
-        "DELETE FROM incidents WHERE src_ip='77.77.77.77';\""
+        f"DELETE FROM playbook_runs WHERE alert_id IN (SELECT id FROM alerts WHERE src_ip='{RAMA_TEST_IP}');"
+        f"DELETE FROM ip_blacklist WHERE ip='{RAMA_TEST_IP}';"
+        f"DELETE FROM alerts WHERE src_ip='{RAMA_TEST_IP}';"
+        f"DELETE FROM incidents WHERE src_ip='{RAMA_TEST_IP}';\""
     )
     result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
     if result.returncode == 0:
@@ -729,7 +729,7 @@ def interactive_menu(stats):
         print(f"  {C.GREEN}10.{C.RESET} Simulacion COMPLETA automatica")
         print(f"\n{C.BOLD}  --- PROBAR RAMAS DEL WORKFLOW ---{C.RESET}")
         print(f"  {C.YELLOW}R1.{C.RESET} Rama 1 — Alerta HIGH (notificacion sin incidente)")
-        print(f"  {C.BLUE}R2.{C.RESET} Rama 2 — Alerta MEDIUM (descartada por filtro)")
+        print(f"  {C.BLUE}R2.{C.RESET} Rama 2 — Alerta LOW (registrada sin notificacion)")
         print(f"  {C.RED}R3.{C.RESET} Rama 3 — Nuevo incidente + Enforce Block")
         print(f"  {C.YELLOW}R4.{C.RESET} Rama 4 — IP Reincidente (requiere correr R3 antes)")
         print(f"  {C.MAGENTA}R5.{C.RESET} Rama 5 — Password Spraying (6 IPs -> admin)")
